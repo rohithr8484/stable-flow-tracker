@@ -1,8 +1,13 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Shield, Search, FileCheck, ArrowRight, Cpu, Lock, BarChart3, Globe } from "lucide-react";
+import { Shield, Search, FileCheck, ArrowRight, Cpu, Lock, BarChart3, Globe, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
+import heroImg from "@/assets/hero-treasury.jpg";
+import riskImg from "@/assets/service-risk.jpg";
+import investigationImg from "@/assets/service-investigation.jpg";
+import complianceImg from "@/assets/service-compliance.jpg";
+import amlImg from "@/assets/service-aml.jpg";
 
 const services = [
   {
@@ -10,18 +15,28 @@ const services = [
     title: "Risk Analysis",
     desc: "Analyze BTC and MUSD addresses for incoming/outgoing risk exposure with real-time scoring.",
     to: "/risk-analysis",
+    img: riskImg,
   },
   {
     icon: Shield,
     title: "Investigation",
     desc: "Trace transaction flows, identify source and destination of funds across BTC and MUSD networks.",
     to: "/investigation",
+    img: investigationImg,
   },
   {
     icon: FileCheck,
     title: "Compliance",
     desc: "Institutional-grade compliance dashboards for treasury operations, AML/KYC monitoring.",
     to: "/compliance",
+    img: complianceImg,
+  },
+  {
+    icon: ShieldAlert,
+    title: "AML Screening",
+    desc: "Screen addresses against global sanctions lists, PEP databases, and adverse media for compliance.",
+    to: "/aml-screening",
+    img: amlImg,
   },
 ];
 
@@ -37,8 +52,12 @@ const Index = () => (
     <Navbar />
 
     {/* Hero */}
-    <section className="pt-32 pb-20 px-4">
-      <div className="container mx-auto text-center max-w-4xl">
+    <section className="pt-32 pb-20 px-4 relative overflow-hidden">
+      <div className="absolute inset-0 z-0">
+        <img src={heroImg} alt="BTC Treasury Infrastructure" className="w-full h-full object-cover opacity-30" width={1280} height={640} />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background" />
+      </div>
+      <div className="container mx-auto text-center max-w-4xl relative z-10">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-sm font-medium mb-6">
             <Shield className="h-4 w-4" />
@@ -59,7 +78,7 @@ const Index = () => (
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link to="/investigation">Explore Investigation</Link>
+              <Link to="/aml-screening">AML Screening</Link>
             </Button>
           </div>
         </motion.div>
@@ -68,22 +87,36 @@ const Index = () => (
 
     {/* Services */}
     <section className="py-20 px-4">
-      <div className="container mx-auto max-w-5xl">
+      <div className="container mx-auto max-w-6xl">
         <h2 className="font-heading text-3xl font-bold text-center text-foreground mb-12">Core Services</h2>
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-6">
           {services.map((s, i) => (
             <motion.div
               key={s.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.15 }}
+              transition={{ delay: i * 0.12 }}
             >
-              <Link to={s.to} className="glass-card p-6 block h-full hover:glow-blue transition-shadow group">
-                <div className="p-3 rounded-lg bg-primary/10 w-fit mb-4 group-hover:bg-primary/20 transition-colors">
-                  <s.icon className="h-6 w-6 text-primary" />
+              <Link to={s.to} className="glass-card block h-full hover:glow-blue transition-shadow group overflow-hidden">
+                <div className="h-44 overflow-hidden">
+                  <img
+                    src={s.img}
+                    alt={s.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                    width={640}
+                    height={512}
+                  />
                 </div>
-                <h3 className="font-heading font-semibold text-foreground text-lg mb-2">{s.title}</h3>
-                <p className="text-sm text-muted-foreground">{s.desc}</p>
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                      <s.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-heading font-semibold text-foreground text-lg">{s.title}</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{s.desc}</p>
+                </div>
               </Link>
             </motion.div>
           ))}

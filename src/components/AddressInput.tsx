@@ -4,23 +4,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface Props {
-  onSubmit: (addresses: { save: string; invest: string; borrow: string }) => void;
+  onSubmit: (addresses: { send: string; receive: string; liquidityPool: string }) => void;
 }
 
 const AddressInput = ({ onSubmit }: Props) => {
-  const [save, setSave] = useState("");
-  const [invest, setInvest] = useState("");
-  const [borrow, setBorrow] = useState("");
+  const [send, setSend] = useState("");
+  const [receive, setReceive] = useState("");
+  const [liquidityPool, setLiquidityPool] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ save, invest, borrow });
+    onSubmit({ send, receive, liquidityPool });
   };
 
   const fields = [
-    { label: "Save Address (BTC / MUSD)", value: save, set: setSave, placeholder: "Enter BTC or MUSD save address..." },
-    { label: "Invest Address (BTC / MUSD)", value: invest, set: setInvest, placeholder: "Enter BTC or MUSD invest address..." },
-    { label: "Borrow Address (BTC / MUSD)", value: borrow, set: setBorrow, placeholder: "Enter BTC or MUSD borrow address..." },
+    { label: "Send Address (BTC / MUSD)", value: send, set: setSend, placeholder: "Enter BTC or MUSD send address..." },
+    { label: "Receive Address (BTC / MUSD)", value: receive, set: setReceive, placeholder: "Enter BTC or MUSD receive address..." },
+    { label: "Liquidity Pool Address", value: liquidityPool, set: setLiquidityPool, placeholder: "Enter liquidity pool contract address..." },
   ];
 
   return (
@@ -31,7 +31,7 @@ const AddressInput = ({ onSubmit }: Props) => {
         </div>
         <div>
           <h3 className="font-heading font-semibold text-foreground">Enter Addresses for Risk Analysis</h3>
-          <p className="text-xs text-muted-foreground">Provide BTC and MUSD addresses for save, invest, and borrow operations</p>
+          <p className="text-xs text-muted-foreground">Provide BTC and MUSD addresses for send, receive, and liquidity pool operations</p>
         </div>
       </div>
 
