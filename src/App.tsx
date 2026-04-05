@@ -23,6 +23,7 @@ const App = () => (
           <Route path="/risk-analysis" element={<RiskAnalysis />} />
           <Route path="/investigation" element={<Investigation />} />
           <Route path="/compliance" element={<Compliance />} />
+          <Route path="/aml-screening" element={<AMLScreening />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
