@@ -17,14 +17,14 @@ const mockTransfers = [
 
 const RiskAnalysis = () => {
   const [analyzed, setAnalyzed] = useState(false);
-  const [addresses, setAddresses] = useState({ save: "", invest: "", borrow: "" });
+  const [addresses, setAddresses] = useState({ send: "", receive: "", liquidityPool: "" });
 
-  const handleAnalyze = (addrs: { save: string; invest: string; borrow: string }) => {
+  const handleAnalyze = (addrs: { send: string; receive: string; liquidityPool: string }) => {
     setAddresses(addrs);
     setAnalyzed(true);
   };
 
-  const displayAddr = addresses.save || "0x026c92534d268cb778b7f9c199785ec31808aaa";
+  const displayAddr = addresses.send || "0x026c92534d268cb778b7f9c199785ec31808aaa";
 
   return (
     <div className="min-h-screen">
@@ -42,7 +42,7 @@ const RiskAnalysis = () => {
               {/* Address bar */}
               <div className="glass-card p-4 flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-muted-foreground">Address</span>
+                  <span className="text-xs text-muted-foreground">Send Address</span>
                   <div className="flex items-center gap-2">
                     <span className="text-primary font-mono text-sm">{displayAddr}</span>
                     <button className="text-muted-foreground hover:text-foreground">
@@ -57,6 +57,24 @@ const RiskAnalysis = () => {
                   New Analysis
                 </button>
               </div>
+
+              {/* All addresses summary */}
+              {(addresses.receive || addresses.liquidityPool) && (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {addresses.receive && (
+                    <div className="glass-card p-4">
+                      <span className="text-xs text-muted-foreground">Receive Address</span>
+                      <div className="text-primary font-mono text-sm truncate">{addresses.receive}</div>
+                    </div>
+                  )}
+                  {addresses.liquidityPool && (
+                    <div className="glass-card p-4">
+                      <span className="text-xs text-muted-foreground">Liquidity Pool</span>
+                      <div className="text-primary font-mono text-sm truncate">{addresses.liquidityPool}</div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid lg:grid-cols-3 gap-6">
                 {/* Risk Score */}

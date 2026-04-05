@@ -7,6 +7,7 @@ import Index from "./pages/Index.tsx";
 import RiskAnalysis from "./pages/RiskAnalysis.tsx";
 import Investigation from "./pages/Investigation.tsx";
 import Compliance from "./pages/Compliance.tsx";
+import AMLScreening from "./pages/AMLScreening.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/risk-analysis" element={<RiskAnalysis />} />
           <Route path="/investigation" element={<Investigation />} />
           <Route path="/compliance" element={<Compliance />} />
+          <Route path="/aml-screening" element={<AMLScreening />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
