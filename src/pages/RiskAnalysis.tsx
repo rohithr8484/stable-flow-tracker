@@ -1,30 +1,89 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Copy, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { Copy, ArrowDownCircle, ArrowUpCircle, ExternalLink, AlertTriangle, Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AddressInput from "@/components/AddressInput";
 import RiskGauge from "@/components/RiskGauge";
 import TransferTable from "@/components/TransferTable";
-
-const mockTransfers = [
-  { id: "1", date: "May 02, 2023", time: "08:34:35", txHash: "0x897ecce1c5...", amount: "0.128698 MUSD", direction: "out" as const },
-  { id: "2", date: "May 02, 2023", time: "08:34:35", txHash: "0x897ecce1c5...", amount: "1.01 BTC", direction: "in" as const },
-  { id: "3", date: "May 02, 2023", time: "08:34:35", txHash: "0x897ecce1c5...", amount: "0.128698 MUSD", direction: "out" as const },
-  { id: "4", date: "May 01, 2023", time: "14:21:10", txHash: "0xa32f8bc91e...", amount: "1.01 BTC", direction: "in" as const },
-  { id: "5", date: "May 01, 2023", time: "14:21:10", txHash: "0xa32f8bc91e...", amount: "0.128698 MUSD", direction: "out" as const },
-  { id: "6", date: "Apr 30, 2023", time: "22:05:44", txHash: "0xd19ae7f334...", amount: "1.01 BTC", direction: "in" as const },
-];
+import { fetchTransaction, formatTokenAmount, computeRiskScore, computeSubRisks, type TxData } from "@/lib/mezoApi";
+import { toast } from "sonner";
 
 const RiskAnalysis = () => {
   const [analyzed, setAnalyzed] = useState(false);
-  const [addresses, setAddresses] = useState({ send: "", receive: "", liquidityPool: "" });
+  const [loading, setLoading] = useState(false);
+  const [hashes, setHashes] = useState({ send: "", receive: "", liquidityPool: "" });
+  const [txResults, setTxResults] = useState<{ send?: TxData; receive?: TxData; liquidityPool?: TxData }>({});
+  const [error, setError] = useState("");
 
-  const handleAnalyze = (addrs: { send: string; receive: string; liquidityPool: string }) => {
-    setAddresses(addrs);
-    setAnalyzed(true);
+  const handleAnalyze = async (input: { send: string; receive: string; liquidityPool: string }) => {
+    setLoading(true);
+    setError("");
+    setHashes(input);
+
+    try {
+      const results: { send?: TxData; receive?: TxData; liquidityPool?: TxData } = {};
+      const fetches: Promise<void>[] = [];
+
+      if (input.send) {
+        fetches.push(fetchTransaction(input.send).then(d => { results.send = d; }));
+      }
+      if (input.receive) {
+        fetches.push(fetchTransaction(input.receive).then(d => { results.receive = d; }));
+      }
+      if (input.liquidityPool) {
+        fetches.push(fetchTransaction(input.liquidityPool).then(d => { results.liquidityPool = d; }));
+      }
+
+      await Promise.all(fetches);
+      setTxResults(results);
+      setAnalyzed(true);
+      toast.success("Transaction analysis complete");
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch transaction data");
+      toast.error("Failed to analyze transaction");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const displayAddr = addresses.send || "0x026c92534d268cb778b7f9c199785ec31808aaa";
+  const primaryTx = txResults.send || txResults.receive || txResults.liquidityPool;
+  const riskScore = primaryTx ? computeRiskScore(primaryTx) : 0;
+  const subRisks = primaryTx ? computeSubRisks(primaryTx) : { incoming: 0, outgoing: 0, indirect: 0 };
+
+  // Build transfers from all fetched txs
+  const allTransfers = Object.entries(txResults).flatMap(([key, tx]) => {
+    if (!tx) return [];
+    return tx.token_transfers.map((t, i) => ({
+      id: `${key}-${i}`,
+      date: new Date(tx.timestamp).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+      time: new Date(tx.timestamp).toLocaleTimeString("en-US", { hour12: false }),
+      txHash: tx.hash.slice(0, 14) + "...",
+      amount: `${formatTokenAmount(t.total.value, t.total.decimals)} ${t.token.symbol}`,
+      direction: (t.type === "token_minting" ? "in" : key === "send" ? "out" : "in") as "in" | "out",
+    }));
+  });
+
+  // Compute totals
+  const totalReceived = Object.values(txResults).reduce((sum, tx) => {
+    if (!tx) return sum;
+    return sum + tx.token_transfers
+      .filter(t => t.type === "token_minting" || t.type === "token_transfer")
+      .reduce((s, t) => s + parseFloat(t.total.value) / Math.pow(10, parseInt(t.total.decimals)), 0);
+  }, 0);
+
+  const totalSent = txResults.send
+    ? txResults.send.token_transfers
+        .filter(t => t.type === "token_transfer")
+        .reduce((s, t) => s + parseFloat(t.total.value) / Math.pow(10, parseInt(t.total.decimals)), 0)
+    : 0;
+
+  const primarySymbol = primaryTx?.token_transfers[0]?.token.symbol || "MUSD";
+
+  const riskLevels = [
+    { label: "Incoming Risk", score: subRisks.incoming, level: subRisks.incoming > 60 ? "High" : subRisks.incoming > 35 ? "Medium" : "Low", color: subRisks.incoming > 60 ? "bg-destructive" : subRisks.incoming > 35 ? "bg-warning" : "bg-success" },
+    { label: "Outgoing Risk", score: subRisks.outgoing, level: subRisks.outgoing > 60 ? "High" : subRisks.outgoing > 35 ? "Medium" : "Low", color: subRisks.outgoing > 60 ? "bg-destructive" : subRisks.outgoing > 35 ? "bg-warning" : "bg-success" },
+    { label: "Indirect Exposure", score: subRisks.indirect, level: subRisks.indirect > 60 ? "High" : subRisks.indirect > 35 ? "Medium" : "Low", color: subRisks.indirect > 60 ? "bg-destructive" : subRisks.indirect > 35 ? "bg-warning" : "bg-success" },
+  ];
 
   return (
     <div className="min-h-screen">
@@ -35,80 +94,171 @@ const RiskAnalysis = () => {
 
           {!analyzed ? (
             <div className="max-w-xl mx-auto">
-              <AddressInput onSubmit={handleAnalyze} />
+              <AddressInput onSubmit={handleAnalyze} loading={loading} />
+              {error && (
+                <div className="mt-4 glass-card p-4 border border-destructive/30 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <span className="text-sm text-destructive">{error}</span>
+                </div>
+              )}
             </div>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              {/* Address bar */}
+              {/* Primary tx hash bar */}
               <div className="glass-card p-4 flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-muted-foreground">Send Address</span>
+                  <span className="text-xs text-muted-foreground">Send Transaction Hash</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-primary font-mono text-sm">{displayAddr}</span>
-                    <button className="text-muted-foreground hover:text-foreground">
-                      <Copy className="h-4 w-4" />
-                    </button>
+                    <span className="text-primary font-mono text-sm">{hashes.send || "N/A"}</span>
+                    {hashes.send && (
+                      <>
+                        <button className="text-muted-foreground hover:text-foreground" onClick={() => { navigator.clipboard.writeText(hashes.send); toast.info("Copied"); }}>
+                          <Copy className="h-4 w-4" />
+                        </button>
+                        <a href={`https://explorer.test.mezo.org/tx/${hashes.send}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </>
+                    )}
                   </div>
                 </div>
-                <button
-                  className="text-sm text-primary hover:underline"
-                  onClick={() => setAnalyzed(false)}
-                >
+                <button className="text-sm text-primary hover:underline" onClick={() => { setAnalyzed(false); setTxResults({}); }}>
                   New Analysis
                 </button>
               </div>
 
-              {/* All addresses summary */}
-              {(addresses.receive || addresses.liquidityPool) && (
+              {/* Other hashes */}
+              {(hashes.receive || hashes.liquidityPool) && (
                 <div className="grid sm:grid-cols-2 gap-4">
-                  {addresses.receive && (
+                  {hashes.receive && (
                     <div className="glass-card p-4">
-                      <span className="text-xs text-muted-foreground">Receive Address</span>
-                      <div className="text-primary font-mono text-sm truncate">{addresses.receive}</div>
+                      <span className="text-xs text-muted-foreground">Receive Transaction Hash</span>
+                      <div className="text-primary font-mono text-sm truncate">{hashes.receive}</div>
+                      {txResults.receive && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Status: <span className={txResults.receive.status === "ok" ? "text-success" : "text-destructive"}>{txResults.receive.status}</span>
+                          {" · "}{txResults.receive.confirmations} confirmations
+                        </div>
+                      )}
                     </div>
                   )}
-                  {addresses.liquidityPool && (
+                  {hashes.liquidityPool && (
                     <div className="glass-card p-4">
-                      <span className="text-xs text-muted-foreground">Liquidity Pool</span>
-                      <div className="text-primary font-mono text-sm truncate">{addresses.liquidityPool}</div>
+                      <span className="text-xs text-muted-foreground">Liquidity Pool Hash</span>
+                      <div className="text-primary font-mono text-sm truncate">{hashes.liquidityPool}</div>
+                      {txResults.liquidityPool && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Method: <span className="text-foreground">{txResults.liquidityPool.method || "transfer"}</span>
+                          {" · "}{txResults.liquidityPool.token_transfers.length} token transfers
+                        </div>
+                      )}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Transaction Details */}
+              {primaryTx && (
+                <div className="glass-card p-5">
+                  <h3 className="font-heading font-semibold text-foreground mb-3">Transaction Details</h3>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground text-xs">Block</span>
+                      <div className="font-mono text-foreground">{primaryTx.block_number.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Method</span>
+                      <div className="text-foreground">{primaryTx.decoded_input?.method_call || primaryTx.method || "transfer"}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Gas Used</span>
+                      <div className="font-mono text-foreground">{parseInt(primaryTx.gas_used).toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Confirmations</span>
+                      <div className="font-mono text-foreground">{primaryTx.confirmations.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">From</span>
+                      <div className="font-mono text-foreground truncate">{primaryTx.from.hash}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">To</span>
+                      <div className="font-mono text-foreground truncate">{primaryTx.to.name || primaryTx.to.hash}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Timestamp</span>
+                      <div className="text-foreground">{new Date(primaryTx.timestamp).toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Nonce</span>
+                      <div className="font-mono text-foreground">{primaryTx.nonce}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Token Transfers Detail */}
+              {primaryTx && primaryTx.token_transfers.length > 0 && (
+                <div className="glass-card p-5">
+                  <h3 className="font-heading font-semibold text-foreground mb-3">Token Transfers ({primaryTx.token_transfers.length})</h3>
+                  <div className="space-y-3">
+                    {primaryTx.token_transfers.map((t, i) => (
+                      <div key={i} className="bg-secondary/50 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${t.type === "token_minting" ? "bg-success/20 text-success" : "bg-primary/20 text-primary"}`}>
+                              {t.type.replace("_", " ")}
+                            </span>
+                            <span>{t.token.name} ({t.token.symbol})</span>
+                          </div>
+                          <div className="text-xs font-mono text-muted-foreground">
+                            <span className="text-foreground">From:</span> {t.from.hash.slice(0, 10)}...{t.from.hash.slice(-6)}
+                            {" → "}
+                            <span className="text-foreground">To:</span> {t.to.name || `${t.to.hash.slice(0, 10)}...${t.to.hash.slice(-6)}`}
+                          </div>
+                        </div>
+                        <div className="text-right font-heading font-bold text-foreground whitespace-nowrap">
+                          {formatTokenAmount(t.total.value, t.total.decimals)} {t.token.symbol}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
               <div className="grid lg:grid-cols-3 gap-6">
                 {/* Risk Score */}
                 <div className="glass-card p-6 flex flex-col items-center">
-                  <RiskGauge score={23} size={220} />
-                  <div className="mt-4 text-xs text-muted-foreground">Last evaluated 2 mins ago</div>
+                  <RiskGauge score={riskScore} size={220} />
+                  <div className="mt-4 text-xs text-muted-foreground">
+                    Evaluated from on-chain data
+                  </div>
                 </div>
 
                 {/* Summary cards */}
                 <div className="space-y-4">
                   <div className="glass-card p-5">
                     <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                      <ArrowDownCircle className="h-3.5 w-3.5" /> Received
+                      <ArrowDownCircle className="h-3.5 w-3.5" /> Total Token Volume
                     </div>
-                    <div className="font-heading text-2xl font-bold text-foreground">0.328459 MUSD</div>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-xs px-2 py-0.5 rounded bg-success/20 text-success font-medium">+32%</span>
+                    <div className="font-heading text-2xl font-bold text-foreground">
+                      {totalReceived.toLocaleString(undefined, { maximumFractionDigits: 4 })} {primarySymbol}
                     </div>
                   </div>
                   <div className="glass-card p-5">
                     <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                      <ArrowUpCircle className="h-3.5 w-3.5" /> Sent
+                      <ArrowUpCircle className="h-3.5 w-3.5" /> Sent Volume
                     </div>
-                    <div className="font-heading text-2xl font-bold text-foreground">1.328459 MUSD</div>
+                    <div className="font-heading text-2xl font-bold text-foreground">
+                      {totalSent.toLocaleString(undefined, { maximumFractionDigits: 4 })} {primarySymbol}
+                    </div>
                   </div>
                 </div>
 
                 {/* Risk breakdown */}
                 <div className="space-y-4">
-                  {[
-                    { label: "Incoming Risk", score: 50, level: "Medium", color: "bg-warning" },
-                    { label: "Outgoing Risk", score: 10, level: "High", color: "bg-destructive" },
-                    { label: "Indirect Exposure", score: 45, level: "Medium", color: "bg-warning" },
-                  ].map((r) => (
+                  {riskLevels.map((r) => (
                     <div key={r.label} className="glass-card p-4">
                       <div className="text-xs text-muted-foreground mb-1">{r.label}</div>
                       <div className="font-heading text-xl font-bold text-foreground">
@@ -126,7 +276,7 @@ const RiskAnalysis = () => {
               </div>
 
               {/* Transfers */}
-              <TransferTable transfers={mockTransfers} />
+              {allTransfers.length > 0 && <TransferTable transfers={allTransfers} />}
             </motion.div>
           )}
         </div>
