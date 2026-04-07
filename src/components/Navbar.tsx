@@ -8,6 +8,7 @@ const navLinks = [
   { to: "/investigation", label: "Investigation" },
   { to: "/compliance", label: "Compliance" },
   { to: "/aml-screening", label: "AML Screening" },
+  { to: "/contract-risk", label: "Contract Risk" },
 ];
 
 const Navbar = () => {
