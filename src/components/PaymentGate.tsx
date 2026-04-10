@@ -6,9 +6,8 @@ import {
   useSendTransaction,
   useSwitchChain,
   useWaitForTransactionReceipt,
-  useWriteContract,
 } from "wagmi";
-import { parseEther } from "viem";
+import { encodeFunctionData, parseEther } from "viem";
 import { motion } from "framer-motion";
 import { Wallet, Coins, Loader2, CheckCircle, Shield, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -32,7 +31,7 @@ const ERC20_ABI = [
       { name: "to", type: "address" },
       { name: "amount", type: "uint256" },
     ],
-    outputs: [{ name: "", type: "bool" }],
+    outputs: [],
   },
 ] as const;
 
@@ -49,10 +48,8 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
   const { connectors, connectAsync, isPending: isConnecting } = useConnect();
   const { disconnectAsync, isPending: isDisconnecting } = useDisconnect();
   const { switchChainAsync, isPending: isSwitchingChain } = useSwitchChain();
-  const { writeContract, data: musdHash, isPending: musdPending, error: musdError } = useWriteContract();
-  const { sendTransaction, data: btcHash, isPending: btcPending, error: btcError } = useSendTransaction();
-  const { isLoading: musdConfirming, isSuccess: musdSuccess } = useWaitForTransactionReceipt({ hash: musdHash });
-  const { isLoading: btcConfirming, isSuccess: btcSuccess } = useWaitForTransactionReceipt({ hash: btcHash });
+  const { sendTransaction, data: paymentHash, isPending: paymentPending, error: paymentError } = useSendTransaction();
+  const { isLoading: paymentConfirming, isSuccess: paymentSuccess } = useWaitForTransactionReceipt({ hash: paymentHash });
 
   const [pendingAction, setPendingAction] = useState<PaymentMethod | null>(null);
   const [stage, setStage] = useState<PaymentStage>("idle");
@@ -76,11 +73,13 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
     setStage("confirm-payment");
 
     if (method === "musd") {
-      writeContract({
-        address: MUSD_CONTRACT,
-        abi: ERC20_ABI,
-        functionName: "transfer",
-        args: [TREASURY_ADDRESS, BigInt(MUSD_PAYMENT_AMOUNT)],
+      sendTransaction({
+        to: MUSD_CONTRACT,
+        data: encodeFunctionData({
+          abi: ERC20_ABI,
+          functionName: "transfer",
+          args: [TREASURY_ADDRESS, BigInt(MUSD_PAYMENT_AMOUNT)],
+        }),
       });
       return;
     }
@@ -145,18 +144,18 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
   }, [pendingAction, isConnected, chain?.id, switchChainAsync]);
 
   useEffect(() => {
-    if (musdPending || btcPending) {
+    if (paymentPending) {
       setStage("confirm-payment");
       return;
     }
 
-    if (musdConfirming || btcConfirming) {
+    if (paymentConfirming) {
       setStage("confirming");
     }
-  }, [musdPending, btcPending, musdConfirming, btcConfirming]);
+  }, [paymentPending, paymentConfirming]);
 
   useEffect(() => {
-    if (!(musdSuccess || btcSuccess)) return;
+    if (!paymentSuccess) return;
 
     setStage("paid");
     setPendingAction(null);
@@ -165,19 +164,18 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
 
     const timer = setTimeout(() => onPaymentComplete(), 1500);
     return () => clearTimeout(timer);
-  }, [musdSuccess, btcSuccess, onPaymentComplete]);
+  }, [paymentSuccess, onPaymentComplete]);
 
   useEffect(() => {
-    const error = musdError || btcError;
-    if (!error) return;
+    if (!paymentError) return;
 
     resetFlow();
-    toast.error(error.message || "Payment request failed.");
-  }, [musdError, btcError]);
+    toast.error(paymentError.message || "Payment request failed.");
+  }, [paymentError]);
 
   const isProcessing =
-    isConnecting || isDisconnecting || isSwitchingChain || musdPending || btcPending || musdConfirming || btcConfirming;
-  const paymentTxHash = musdHash || btcHash;
+    isConnecting || isDisconnecting || isSwitchingChain || paymentPending || paymentConfirming;
+  const paymentTxHash = paymentHash;
   const activePaymentLabel = pendingAction === "musd" ? `${MUSD_PAYMENT_DISPLAY} MUSD` : `${BTC_PAYMENT_DISPLAY} BTC`;
   const showWalletPicker = stage === "pick-wallet";
 
@@ -232,7 +230,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
                     ? "Refreshing wallet connection..."
                     : isSwitchingChain
                     ? "Switching to Mezo Matsnet..."
-                    : musdPending || btcPending
+                      : paymentPending
                       ? "Confirm transaction in your wallet..."
                       : "Waiting for on-chain confirmation..."}
               </div>
