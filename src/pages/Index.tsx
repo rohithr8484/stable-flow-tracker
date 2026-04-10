@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Shield, Search, FileCheck, ArrowRight, Cpu, Lock, BarChart3, Globe, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Navbar from "@/components/Navbar";
 import heroImg from "@/assets/hero-treasury.jpg";
 import riskImg from "@/assets/service-risk.jpg";
@@ -71,7 +72,8 @@ const Index = () => (
             Enterprise compliance infrastructure for BTC and MUSD treasury operations.
             Analyze risk, trace transactions, and maintain regulatory compliance at scale.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+            <ConnectButton />
             <Button asChild size="lg" className="gap-2">
               <Link to="/risk-analysis">
                 Start Analysis <ArrowRight className="h-4 w-4" />

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Shield, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const navLinks = [
   { to: "/", label: "Home" },
@@ -28,7 +29,7 @@ const Navbar = () => {
             <Link
               key={l.to}
               to={l.to}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 location.pathname === l.to
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -39,9 +40,18 @@ const Navbar = () => {
           ))}
         </div>
 
-        <button className="md:hidden text-foreground" onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:block">
+            <ConnectButton
+              accountStatus="avatar"
+              chainStatus="icon"
+              showBalance={false}
+            />
+          </div>
+          <button className="md:hidden text-foreground" onClick={() => setMobileOpen(!mobileOpen)}>
+            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
 
       {mobileOpen && (
@@ -58,6 +68,9 @@ const Navbar = () => {
               {l.label}
             </Link>
           ))}
+          <div className="pt-2 px-4">
+            <ConnectButton accountStatus="avatar" chainStatus="icon" showBalance={false} />
+          </div>
         </div>
       )}
     </nav>
