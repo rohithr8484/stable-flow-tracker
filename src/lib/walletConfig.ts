@@ -15,7 +15,7 @@ export const mezoTestnet = defineChain({
   testnet: true,
 });
 
-export const MUSD_CONTRACT = "0x637e25b1dD53ECF1c3E3ea9aCE3ACa92eE17150c" as const;
+export const MUSD_CONTRACT = "0x637e25b1dd53ecf1c3e3ea9ace3aca92ee17150c" as const;
 export const MUSD_PAYMENT_AMOUNT = "200000000000000000" as const;
 export const MUSD_PAYMENT_DISPLAY = "0.2";
 export const BTC_PAYMENT_DISPLAY = "0.0002";
