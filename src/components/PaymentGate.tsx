@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSendTransaction, useConnect } from "wagmi";
+import { useState, useEffect, useRef } from "react";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSendTransaction } from "wagmi";
 import { parseEther } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { motion } from "framer-motion";
@@ -28,36 +28,19 @@ interface PaymentGateProps {
 export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentGateProps) {
   const { isConnected, address } = useAccount();
   const { openConnectModal } = useConnectModal();
+  const pendingActionRef = useRef<"musd" | "btc" | null>(null);
   const [pendingAction, setPendingAction] = useState<"musd" | "btc" | null>(null);
   const [paid, setPaid] = useState(false);
+  const [txSent, setTxSent] = useState(false);
 
-  const { writeContract, data: musdHash, isPending: musdPending, reset: resetMusd } = useWriteContract();
+  const { writeContract, data: musdHash, isPending: musdPending } = useWriteContract();
   const { isLoading: musdConfirming, isSuccess: musdSuccess } = useWaitForTransactionReceipt({ hash: musdHash });
 
-  const { sendTransaction, data: btcHash, isPending: btcPending, reset: resetBtc } = useSendTransaction();
+  const { sendTransaction, data: btcHash, isPending: btcPending } = useSendTransaction();
   const { isLoading: btcConfirming, isSuccess: btcSuccess } = useWaitForTransactionReceipt({ hash: btcHash });
 
-  // When user clicks pay but isn't connected, open connect modal and queue the action
-  const handlePayMUSD = () => {
-    if (!isConnected) {
-      setPendingAction("musd");
-      openConnectModal?.();
-      return;
-    }
-    executeMUSDPayment();
-  };
-
-  const handlePayBTC = () => {
-    if (!isConnected) {
-      setPendingAction("btc");
-      openConnectModal?.();
-      return;
-    }
-    executeBTCPayment();
-  };
-
   const executeMUSDPayment = () => {
-    setPendingAction("musd");
+    setTxSent(true);
     writeContract({
       address: MUSD_CONTRACT,
       abi: ERC20_ABI,
@@ -67,25 +50,47 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
   };
 
   const executeBTCPayment = () => {
-    setPendingAction("btc");
+    setTxSent(true);
     sendTransaction({
       to: TREASURY_ADDRESS,
       value: parseEther(BTC_PAYMENT_DISPLAY),
     });
   };
 
-  // After wallet connects, auto-trigger the pending payment
+  // Both buttons use the same flow:
+  // 1. If not connected → open wallet connect modal, save pending action
+  // 2. If connected → directly trigger the transaction in the wallet
+  const handlePayMUSD = () => {
+    setPendingAction("musd");
+    pendingActionRef.current = "musd";
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
+    executeMUSDPayment();
+  };
+
+  const handlePayBTC = () => {
+    setPendingAction("btc");
+    pendingActionRef.current = "btc";
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
+    executeBTCPayment();
+  };
+
+  // After wallet connects, auto-trigger the queued payment
   useEffect(() => {
-    if (isConnected && pendingAction) {
-      const action = pendingAction;
-      // Small delay to let wallet connection settle
+    if (isConnected && pendingActionRef.current && !txSent) {
+      const action = pendingActionRef.current;
       const timer = setTimeout(() => {
         if (action === "musd") executeMUSDPayment();
         else executeBTCPayment();
-      }, 500);
+      }, 600);
       return () => clearTimeout(timer);
     }
-  }, [isConnected]);
+  }, [isConnected, txSent]);
 
   const isProcessing = musdPending || btcPending || musdConfirming || btcConfirming;
   const isSuccess = musdSuccess || btcSuccess;
@@ -105,9 +110,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
         </div>
 
         <div>
-          <h2 className="font-heading text-xl font-bold text-foreground mb-2">
-            Payment Required
-          </h2>
+          <h2 className="font-heading text-xl font-bold text-foreground mb-2">Payment Required</h2>
           <p className="text-sm text-muted-foreground">
             Pay <span className="text-foreground font-semibold">{MUSD_PAYMENT_DISPLAY} MUSD</span> or{" "}
             <span className="text-foreground font-semibold">{BTC_PAYMENT_DISPLAY} BTC</span> to access{" "}
@@ -122,9 +125,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
         {isConnected && (
           <div className="p-3 rounded-lg border border-success/30 bg-success/5 flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-success shrink-0" />
-            <span className="text-xs text-muted-foreground font-mono truncate">
-              Connected: {address}
-            </span>
+            <span className="text-xs text-muted-foreground font-mono truncate">Connected: {address}</span>
           </div>
         )}
 
@@ -134,9 +135,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
             <CheckCircle className="h-10 w-10 text-success mx-auto" />
             <div className="text-success text-sm font-semibold">Payment confirmed!</div>
             {paymentTxHash && (
-              <div className="text-xs text-muted-foreground font-mono truncate">
-                Tx: {paymentTxHash}
-              </div>
+              <div className="text-xs text-muted-foreground font-mono truncate">Tx: {paymentTxHash}</div>
             )}
             <div className="text-xs text-muted-foreground">Loading results...</div>
           </motion.div>
