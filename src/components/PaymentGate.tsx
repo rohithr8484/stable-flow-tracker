@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useAccount,
   useConnect,
@@ -40,14 +40,17 @@ interface PaymentGateProps {
   serviceName: string;
 }
 
+type PaymentMethod = "musd" | "btc";
+type PaymentStage = "idle" | "pick-wallet" | "connect-wallet" | "switch-network" | "confirm-payment" | "confirming" | "paid";
+
 export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentGateProps) {
   const { isConnected, address, chain, connector } = useAccount();
   const { connectors, connectAsync, isPending: isConnecting } = useConnect();
   const { switchChainAsync, isPending: isSwitchingChain } = useSwitchChain();
 
-  const [pendingAction, setPendingAction] = useState<"musd" | "btc" | null>(null);
-  const [showWalletPicker, setShowWalletPicker] = useState(false);
-  const [paid, setPaid] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PaymentMethod | null>(null);
+  const [stage, setStage] = useState<PaymentStage>("idle");
+  const paymentTriggeredRef = useRef(false);
 
   const { writeContract, data: musdHash, isPending: musdPending } = useWriteContract();
   const { isLoading: musdConfirming, isSuccess: musdSuccess } = useWaitForTransactionReceipt({ hash: musdHash });
@@ -60,74 +63,120 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
     [connectors],
   );
 
-  const executeMUSDPayment = async () => {
-    writeContract({
-      address: MUSD_CONTRACT,
-      abi: ERC20_ABI,
-      functionName: "transfer",
-      args: [TREASURY_ADDRESS, BigInt(MUSD_PAYMENT_AMOUNT)],
-    });
+  const resetFlow = () => {
+    setPendingAction(null);
+    setStage("idle");
+    paymentTriggeredRef.current = false;
   };
 
-  const executeBTCPayment = async () => {
+  const openPaymentPrompt = (method: PaymentMethod) => {
+    paymentTriggeredRef.current = true;
+    setStage("confirm-payment");
+
+    if (method === "musd") {
+      writeContract({
+        address: MUSD_CONTRACT,
+        abi: ERC20_ABI,
+        functionName: "transfer",
+        args: [TREASURY_ADDRESS, BigInt(MUSD_PAYMENT_AMOUNT)],
+      });
+      return;
+    }
+
     sendTransaction({
       to: TREASURY_ADDRESS,
       value: parseEther(BTC_PAYMENT_DISPLAY),
     });
   };
 
-  const ensureMezoNetwork = async () => {
-    if (chain?.id === mezoTestnet.id) return;
-    await switchChainAsync({ chainId: mezoTestnet.id });
-  };
-
-  const runPayment = async (method: "musd" | "btc") => {
-    await ensureMezoNetwork();
-
-    if (method === "musd") {
-      await executeMUSDPayment();
-      return;
-    }
-
-    await executeBTCPayment();
-  };
-
-  const startPayment = async (method: "musd" | "btc") => {
+  const startPayment = (method: PaymentMethod) => {
     setPendingAction(method);
+    paymentTriggeredRef.current = false;
 
     if (!isConnected) {
-      setShowWalletPicker(true);
+      setStage("pick-wallet");
       return;
     }
 
-    try {
-      await runPayment(method);
-    } catch {
-      setPendingAction(null);
-      toast.error("Please connect on Mezo Matsnet to continue.");
+    if (chain?.id !== mezoTestnet.id) {
+      setStage("switch-network");
+      return;
     }
+
+    openPaymentPrompt(method);
   };
 
   const handleWalletConnect = async (walletConnector: (typeof connectors)[number]) => {
-    if (!pendingAction) return;
-
     try {
+      setStage("connect-wallet");
       await connectAsync({ connector: walletConnector });
-      setShowWalletPicker(false);
-      await switchChainAsync({ chainId: mezoTestnet.id });
-      await runPayment(pendingAction);
     } catch {
-      setPendingAction(null);
-      setShowWalletPicker(false);
-      toast.error("Wallet connection or payment confirmation was cancelled.");
+      resetFlow();
+      toast.error("Wallet connection was cancelled.");
     }
   };
 
-  if ((musdSuccess || btcSuccess) && !paid) {
-    setPaid(true);
+  useEffect(() => {
+    if (!pendingAction || paymentTriggeredRef.current) return;
+
+    if (!isConnected) {
+      if (stage !== "pick-wallet" && stage !== "connect-wallet") {
+        setStage("pick-wallet");
+      }
+      return;
+    }
+
+    if (chain?.id !== mezoTestnet.id) {
+      if (stage !== "switch-network") {
+        setStage("switch-network");
+      }
+      return;
+    }
+
+    openPaymentPrompt(pendingAction);
+  }, [pendingAction, isConnected, chain?.id]);
+
+  useEffect(() => {
+    if (stage !== "switch-network" || !pendingAction || !isConnected || chain?.id === mezoTestnet.id) return;
+
+    let active = true;
+
+    const switchNetwork = async () => {
+      try {
+        await switchChainAsync({ chainId: mezoTestnet.id });
+      } catch {
+        if (active) {
+          resetFlow();
+          toast.error("Please approve the switch to Mezo Matsnet.");
+        }
+      }
+    };
+
+    void switchNetwork();
+
+    return () => {
+      active = false;
+    };
+  }, [stage, pendingAction, isConnected, chain?.id, switchChainAsync]);
+
+  useEffect(() => {
+    if (musdPending || btcPending) {
+      setStage("confirm-payment");
+    } else if (musdConfirming || btcConfirming) {
+      setStage("confirming");
+    }
+  }, [musdPending, btcPending, musdConfirming, btcConfirming]);
+
+  useEffect(() => {
+    if (!(musdSuccess || btcSuccess)) return;
+
+    setStage("paid");
     setPendingAction(null);
-    setTimeout(() => onPaymentComplete(), 1500);
-  }
+    paymentTriggeredRef.current = false;
+
+    const timer = setTimeout(() => onPaymentComplete(), 1500);
+    return () => clearTimeout(timer);
+  }, [musdSuccess, btcSuccess, onPaymentComplete]);
 
   const isProcessing =
     isConnecting || isSwitchingChain || musdPending || btcPending || musdConfirming || btcConfirming;
@@ -150,7 +199,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
               <span className="text-foreground font-medium">{serviceName}</span>.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Clicking pay opens wallet selection, then wallet confirmation on Mezo Matsnet.
+              MUSD now uses the same wallet flow as BTC: pick wallet, connect, switch to Mezo Matsnet, then confirm payment in wallet.
             </p>
           </div>
 
@@ -168,7 +217,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
             </div>
           )}
 
-          {paid ? (
+          {stage === "paid" ? (
             <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="p-6 rounded-lg border border-success/30 bg-success/5 space-y-3">
               <CheckCircle className="h-10 w-10 text-success mx-auto" />
               <div className="text-success text-sm font-semibold">Payment confirmed!</div>
@@ -191,11 +240,11 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
             </div>
           ) : (
             <div className="space-y-3">
-              <Button onClick={() => void startPayment("musd")} className="w-full gap-2 h-12 text-base" variant="default">
+              <Button onClick={() => startPayment("musd")} className="w-full gap-2 h-12 text-base" variant="default">
                 <Coins className="h-5 w-5" />
                 Pay with MUSD — {MUSD_PAYMENT_DISPLAY} MUSD
               </Button>
-              <Button onClick={() => void startPayment("btc")} className="w-full gap-2 h-12 text-base" variant="outline">
+              <Button onClick={() => startPayment("btc")} className="w-full gap-2 h-12 text-base" variant="outline">
                 <Wallet className="h-5 w-5" />
                 Pay with BTC — {BTC_PAYMENT_DISPLAY} BTC
               </Button>
@@ -208,7 +257,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
         </div>
       </motion.div>
 
-      {showWalletPicker && (
+      {stage === "pick-wallet" && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/80 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
             <div className="mb-5">
@@ -243,7 +292,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
             </div>
 
             <div className="mt-4 flex justify-end">
-              <Button type="button" variant="ghost" onClick={() => { setShowWalletPicker(false); setPendingAction(null); }}>
+              <Button type="button" variant="ghost" onClick={resetFlow}>
                 Cancel
               </Button>
             </div>
