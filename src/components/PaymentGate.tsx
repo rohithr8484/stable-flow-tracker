@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   useAccount,
   useConnect,
@@ -48,7 +48,6 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
   const [pendingAction, setPendingAction] = useState<"musd" | "btc" | null>(null);
   const [showWalletPicker, setShowWalletPicker] = useState(false);
   const [paid, setPaid] = useState(false);
-  const [txSent, setTxSent] = useState(false);
 
   const { writeContract, data: musdHash, isPending: musdPending } = useWriteContract();
   const { isLoading: musdConfirming, isSuccess: musdSuccess } = useWaitForTransactionReceipt({ hash: musdHash });
@@ -61,8 +60,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
     [connectors],
   );
 
-  const executeMUSDPayment = () => {
-    setTxSent(true);
+  const executeMUSDPayment = async () => {
     writeContract({
       address: MUSD_CONTRACT,
       abi: ERC20_ABI,
@@ -71,17 +69,31 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
     });
   };
 
-  const executeBTCPayment = () => {
-    setTxSent(true);
+  const executeBTCPayment = async () => {
     sendTransaction({
       to: TREASURY_ADDRESS,
       value: parseEther(BTC_PAYMENT_DISPLAY),
     });
   };
 
-  const triggerPayment = async (method: "musd" | "btc") => {
+  const ensureMezoNetwork = async () => {
+    if (chain?.id === mezoTestnet.id) return;
+    await switchChainAsync({ chainId: mezoTestnet.id });
+  };
+
+  const runPayment = async (method: "musd" | "btc") => {
+    await ensureMezoNetwork();
+
+    if (method === "musd") {
+      await executeMUSDPayment();
+      return;
+    }
+
+    await executeBTCPayment();
+  };
+
+  const startPayment = async (method: "musd" | "btc") => {
     setPendingAction(method);
-    setTxSent(false);
 
     if (!isConnected) {
       setShowWalletPicker(true);
@@ -89,13 +101,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
     }
 
     try {
-      if (chain?.id !== mezoTestnet.id) {
-        await switchChainAsync({ chainId: mezoTestnet.id });
-        return;
-      }
-
-      if (method === "musd") executeMUSDPayment();
-      else executeBTCPayment();
+      await runPayment(method);
     } catch {
       setPendingAction(null);
       toast.error("Please connect on Mezo Matsnet to continue.");
@@ -103,43 +109,25 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
   };
 
   const handleWalletConnect = async (walletConnector: (typeof connectors)[number]) => {
+    if (!pendingAction) return;
+
     try {
-      await connectAsync({ connector: walletConnector, chainId: mezoTestnet.id });
+      await connectAsync({ connector: walletConnector });
       setShowWalletPicker(false);
+      await switchChainAsync({ chainId: mezoTestnet.id });
+      await runPayment(pendingAction);
     } catch {
       setPendingAction(null);
-      toast.error("Wallet connection was cancelled.");
+      setShowWalletPicker(false);
+      toast.error("Wallet connection or payment confirmation was cancelled.");
     }
   };
 
-  useEffect(() => {
-    if (!pendingAction || !isConnected || txSent) return;
-
-    const resume = async () => {
-      try {
-        if (chain?.id !== mezoTestnet.id) {
-          await switchChainAsync({ chainId: mezoTestnet.id });
-          return;
-        }
-
-        if (pendingAction === "musd") executeMUSDPayment();
-        else executeBTCPayment();
-      } catch {
-        setPendingAction(null);
-        toast.error("Please approve the network switch to Mezo Matsnet.");
-      }
-    };
-
-    void resume();
-  }, [pendingAction, isConnected, chain?.id, txSent, switchChainAsync]);
-
-  useEffect(() => {
-    if (!(musdSuccess || btcSuccess)) return;
+  if ((musdSuccess || btcSuccess) && !paid) {
     setPaid(true);
     setPendingAction(null);
-    const timer = setTimeout(() => onPaymentComplete(), 1500);
-    return () => clearTimeout(timer);
-  }, [musdSuccess, btcSuccess, onPaymentComplete]);
+    setTimeout(() => onPaymentComplete(), 1500);
+  }
 
   const isProcessing =
     isConnecting || isSwitchingChain || musdPending || btcPending || musdConfirming || btcConfirming;
@@ -162,7 +150,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
               <span className="text-foreground font-medium">{serviceName}</span>.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Clicking pay opens wallet connection first, then wallet confirmation on Mezo Matsnet.
+              Clicking pay opens wallet selection, then wallet confirmation on Mezo Matsnet.
             </p>
           </div>
 
@@ -203,11 +191,11 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
             </div>
           ) : (
             <div className="space-y-3">
-              <Button onClick={() => void triggerPayment("musd")} className="w-full gap-2 h-12 text-base" variant="default">
+              <Button onClick={() => void startPayment("musd")} className="w-full gap-2 h-12 text-base" variant="default">
                 <Coins className="h-5 w-5" />
                 Pay with MUSD — {MUSD_PAYMENT_DISPLAY} MUSD
               </Button>
-              <Button onClick={() => void triggerPayment("btc")} className="w-full gap-2 h-12 text-base" variant="outline">
+              <Button onClick={() => void startPayment("btc")} className="w-full gap-2 h-12 text-base" variant="outline">
                 <Wallet className="h-5 w-5" />
                 Pay with BTC — {BTC_PAYMENT_DISPLAY} BTC
               </Button>
@@ -226,7 +214,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
             <div className="mb-5">
               <h3 className="font-heading text-xl font-bold text-foreground">Connect wallet</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Choose MetaMask or another browser wallet, then confirm the {pendingAction === "musd" ? `${MUSD_PAYMENT_DISPLAY} MUSD` : `${BTC_PAYMENT_DISPLAY} BTC`} payment in your wallet.
+                Pick MetaMask or another wallet, connect, switch to Mezo Matsnet, then confirm the {pendingAction === "musd" ? `${MUSD_PAYMENT_DISPLAY} MUSD` : `${BTC_PAYMENT_DISPLAY} BTC`} payment in your wallet.
               </p>
             </div>
 
@@ -242,14 +230,14 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
                   >
                     <div>
                       <div className="text-sm font-medium text-foreground">{getConnectorLabel(walletConnector)}</div>
-                      <div className="text-xs text-muted-foreground">Connect and continue payment on Mezo Matsnet</div>
+                      <div className="text-xs text-muted-foreground">Open wallet and continue payment</div>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </button>
                 ))
               ) : (
                 <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
-                  No browser wallet detected. Install MetaMask or open this app inside a wallet browser.
+                  No wallet detected. Install MetaMask or open this app inside a wallet browser.
                 </div>
               )}
             </div>
