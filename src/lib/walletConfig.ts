@@ -1,4 +1,5 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { createConfig, http } from "wagmi";
+import { injected } from "wagmi/connectors";
 import { defineChain } from "viem";
 
 export const mezoTestnet = defineChain({
@@ -14,19 +15,16 @@ export const mezoTestnet = defineChain({
   testnet: true,
 });
 
-// MUSD token contract on Mezo testnet
 export const MUSD_CONTRACT = "0x637e25b1dD53ECF1c3E3ea9aCE3ACa92eE17150c" as const;
-
-// Payment amounts
-export const MUSD_PAYMENT_AMOUNT = "200000000000000000" as const; // 0.2 MUSD (18 decimals)
+export const MUSD_PAYMENT_AMOUNT = "200000000000000000" as const;
 export const MUSD_PAYMENT_DISPLAY = "0.2";
 export const BTC_PAYMENT_DISPLAY = "0.0002";
-
-// Treasury address to receive payments
 export const TREASURY_ADDRESS = "0x000000000000000000000000000000000000dEaD" as const;
 
-export const config = getDefaultConfig({
-  appName: "BTC Treasury Management",
-  projectId: "696956c426d467cb2aed00d4b0a543b",
+export const config = createConfig({
   chains: [mezoTestnet],
+  connectors: [injected()],
+  transports: {
+    [mezoTestnet.id]: http("https://rpc.test.mezo.org"),
+  },
 });
