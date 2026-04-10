@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useAccount,
   useConnect,
+  useDisconnect,
   useSendTransaction,
   useSwitchChain,
   useWaitForTransactionReceipt,
@@ -46,6 +47,7 @@ type PaymentStage = "idle" | "pick-wallet" | "connect-wallet" | "switch-network"
 export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentGateProps) {
   const { isConnected, address, chain, connector } = useAccount();
   const { connectors, connectAsync, isPending: isConnecting } = useConnect();
+  const { disconnectAsync, isPending: isDisconnecting } = useDisconnect();
   const { switchChainAsync, isPending: isSwitchingChain } = useSwitchChain();
   const { writeContract, data: musdHash, isPending: musdPending, error: musdError } = useWriteContract();
   const { sendTransaction, data: btcHash, isPending: btcPending, error: btcError } = useSendTransaction();
@@ -91,7 +93,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
 
   const startPayment = (method: PaymentMethod) => {
     setPendingAction(method);
-    setStage(isConnected ? "switch-network" : "pick-wallet");
+    setStage(method === "musd" ? "pick-wallet" : isConnected ? "switch-network" : "pick-wallet");
     paymentRequestedRef.current = false;
     switchingRequestedRef.current = false;
   };
@@ -99,6 +101,11 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
   const handleWalletConnect = async (walletConnector: (typeof connectors)[number]) => {
     try {
       setStage("connect-wallet");
+
+      if (pendingAction === "musd" && isConnected) {
+        await disconnectAsync();
+      }
+
       await connectAsync({ connector: walletConnector });
     } catch {
       resetFlow();
@@ -168,7 +175,8 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
     toast.error(error.message || "Payment request failed.");
   }, [musdError, btcError]);
 
-  const isProcessing = isConnecting || isSwitchingChain || musdPending || btcPending || musdConfirming || btcConfirming;
+  const isProcessing =
+    isConnecting || isDisconnecting || isSwitchingChain || musdPending || btcPending || musdConfirming || btcConfirming;
   const paymentTxHash = musdHash || btcHash;
   const activePaymentLabel = pendingAction === "musd" ? `${MUSD_PAYMENT_DISPLAY} MUSD` : `${BTC_PAYMENT_DISPLAY} BTC`;
   const showWalletPicker = stage === "pick-wallet";
@@ -220,7 +228,9 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
               <div className="text-primary text-sm font-medium">
                 {isConnecting
                   ? "Connecting wallet..."
-                  : isSwitchingChain
+                  : isDisconnecting
+                    ? "Refreshing wallet connection..."
+                    : isSwitchingChain
                     ? "Switching to Mezo Matsnet..."
                     : musdPending || btcPending
                       ? "Confirm transaction in your wallet..."
@@ -253,7 +263,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
             <div className="mb-5">
               <h3 className="font-heading text-xl font-bold text-foreground">Connect wallet</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Pick MetaMask or another wallet, then the app will open the wallet transfer request for {pendingAction === "musd" ? `${MUSD_PAYMENT_DISPLAY} MUSD` : `${BTC_PAYMENT_DISPLAY} BTC`}.
+                  Pick MetaMask or another wallet, then the app will open the wallet transfer request for {pendingAction === "musd" ? `${MUSD_PAYMENT_DISPLAY} MUSD` : `${BTC_PAYMENT_DISPLAY} BTC`}.
               </p>
             </div>
 
@@ -264,12 +274,14 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
                     key={walletConnector.id}
                     type="button"
                     onClick={() => void handleWalletConnect(walletConnector)}
-                    disabled={isConnecting}
+                    disabled={isConnecting || isDisconnecting}
                     className="flex w-full items-center justify-between rounded-xl border border-border bg-secondary/40 px-4 py-3 text-left transition-colors hover:bg-secondary"
                   >
                     <div>
                       <div className="text-sm font-medium text-foreground">{getConnectorLabel(walletConnector)}</div>
-                      <div className="text-xs text-muted-foreground">Open wallet and continue payment</div>
+                      <div className="text-xs text-muted-foreground">
+                        {pendingAction === "musd" ? `Connect and confirm ${MUSD_PAYMENT_DISPLAY} MUSD` : "Open wallet and continue payment"}
+                      </div>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </button>
