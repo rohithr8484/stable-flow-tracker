@@ -1,11 +1,26 @@
-import { useState, useEffect, useRef } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSendTransaction } from "wagmi";
+import { useEffect, useState } from "react";
+import {
+  useAccount,
+  useConnect,
+  useSendTransaction,
+  useSwitchChain,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from "wagmi";
 import { parseEther } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { motion } from "framer-motion";
 import { Wallet, Coins, Loader2, CheckCircle, Shield } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { MUSD_CONTRACT, TREASURY_ADDRESS, MUSD_PAYMENT_AMOUNT, MUSD_PAYMENT_DISPLAY, BTC_PAYMENT_DISPLAY } from "@/lib/walletConfig";
+import {
+  mezoTestnet,
+  MUSD_CONTRACT,
+  TREASURY_ADDRESS,
+  MUSD_PAYMENT_AMOUNT,
+  MUSD_PAYMENT_DISPLAY,
+  BTC_PAYMENT_DISPLAY,
+} from "@/lib/walletConfig";
 
 const ERC20_ABI = [
   {
@@ -25,10 +40,15 @@ interface PaymentGateProps {
   serviceName: string;
 }
 
+const shortenAddress = (address?: string) =>
+  address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "";
+
 export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentGateProps) {
-  const { isConnected, address } = useAccount();
+  const { isConnected, address, chain, connector } = useAccount();
+  const { connectors, connectAsync, isPending: isConnecting } = useConnect();
+  const { switchChainAsync, isPending: isSwitchingChain } = useSwitchChain();
   const { openConnectModal } = useConnectModal();
-  const pendingActionRef = useRef<"musd" | "btc" | null>(null);
+
   const [pendingAction, setPendingAction] = useState<"musd" | "btc" | null>(null);
   const [paid, setPaid] = useState(false);
   const [txSent, setTxSent] = useState(false);
@@ -57,50 +77,84 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
     });
   };
 
-  // Both buttons use the same flow:
-  // 1. If not connected → open wallet connect modal, save pending action
-  // 2. If connected → directly trigger the transaction in the wallet
-  const handlePayMUSD = () => {
-    setPendingAction("musd");
-    pendingActionRef.current = "musd";
-    if (!isConnected) {
-      openConnectModal?.();
-      return;
+  const startPayment = async (method: "musd" | "btc") => {
+    setPendingAction(method);
+    setTxSent(false);
+
+    try {
+      if (!isConnected) {
+        const injectedConnector =
+          connectors.find((item) => item.type === "injected") ??
+          connectors.find((item) => /meta|rabby|coinbase|wallet|browser/i.test(item.name));
+
+        if (injectedConnector) {
+          await connectAsync({ connector: injectedConnector, chainId: mezoTestnet.id });
+          return;
+        }
+
+        openConnectModal?.();
+        return;
+      }
+
+      if (chain?.id !== mezoTestnet.id) {
+        await switchChainAsync({ chainId: mezoTestnet.id });
+        return;
+      }
+
+      if (method === "musd") executeMUSDPayment();
+      else executeBTCPayment();
+    } catch (error) {
+      setPendingAction(null);
+      setTxSent(false);
+      toast.error("Wallet connection or chain switch was cancelled.");
     }
-    executeMUSDPayment();
   };
 
-  const handlePayBTC = () => {
-    setPendingAction("btc");
-    pendingActionRef.current = "btc";
-    if (!isConnected) {
-      openConnectModal?.();
-      return;
-    }
-    executeBTCPayment();
-  };
-
-  // After wallet connects, auto-trigger the queued payment
   useEffect(() => {
-    if (isConnected && pendingActionRef.current && !txSent) {
-      const action = pendingActionRef.current;
-      const timer = setTimeout(() => {
-        if (action === "musd") executeMUSDPayment();
+    if (!pendingAction || !isConnected || txSent) return;
+
+    let cancelled = false;
+
+    const resumePayment = async () => {
+      try {
+        if (chain?.id !== mezoTestnet.id) {
+          await switchChainAsync({ chainId: mezoTestnet.id });
+          return;
+        }
+
+        if (cancelled) return;
+
+        if (pendingAction === "musd") executeMUSDPayment();
         else executeBTCPayment();
-      }, 600);
+      } catch (error) {
+        if (!cancelled) {
+          setPendingAction(null);
+          setTxSent(false);
+          toast.error("Please connect your wallet on Mezo Matsnet to continue.");
+        }
+      }
+    };
+
+    void resumePayment();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingAction, isConnected, chain?.id, txSent, switchChainAsync]);
+
+  useEffect(() => {
+    if (musdSuccess || btcSuccess) {
+      setPaid(true);
+      setPendingAction(null);
+      const timer = setTimeout(() => onPaymentComplete(), 1500);
       return () => clearTimeout(timer);
     }
-  }, [isConnected, txSent]);
+  }, [musdSuccess, btcSuccess, onPaymentComplete]);
 
-  const isProcessing = musdPending || btcPending || musdConfirming || btcConfirming;
-  const isSuccess = musdSuccess || btcSuccess;
-
-  if (isSuccess && !paid) {
-    setPaid(true);
-    setTimeout(() => onPaymentComplete(), 1500);
-  }
-
+  const isProcessing =
+    isConnecting || isSwitchingChain || musdPending || btcPending || musdConfirming || btcConfirming;
   const paymentTxHash = musdHash || btcHash;
+  const activePaymentLabel = pendingAction === "musd" ? `${MUSD_PAYMENT_DISPLAY} MUSD` : `${BTC_PAYMENT_DISPLAY} BTC`;
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto">
@@ -117,58 +171,60 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
             <span className="text-foreground font-medium">{serviceName}</span>.
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Clicking pay will open your wallet for confirmation on Mezo Matsnet (Chain ID: 31611).
+            Clicking pay now forces wallet connect first, then opens wallet confirmation on Mezo Matsnet.
           </p>
         </div>
 
-        {/* Wallet status */}
         {isConnected && (
-          <div className="p-3 rounded-lg border border-success/30 bg-success/5 flex items-center gap-2">
+          <div className="p-3 rounded-lg border border-success/30 bg-success/5 flex items-center gap-2 text-left">
             <CheckCircle className="h-4 w-4 text-success shrink-0" />
-            <span className="text-xs text-muted-foreground font-mono truncate">Connected: {address}</span>
+            <div className="min-w-0">
+              <div className="text-xs text-foreground font-medium truncate">
+                Connected with {connector?.name || "Wallet"}
+              </div>
+              <div className="text-xs text-muted-foreground font-mono truncate">
+                {shortenAddress(address)} · {chain?.name || "Unknown network"}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Payment state */}
         {paid ? (
           <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="p-6 rounded-lg border border-success/30 bg-success/5 space-y-3">
             <CheckCircle className="h-10 w-10 text-success mx-auto" />
             <div className="text-success text-sm font-semibold">Payment confirmed!</div>
-            {paymentTxHash && (
-              <div className="text-xs text-muted-foreground font-mono truncate">Tx: {paymentTxHash}</div>
-            )}
+            {paymentTxHash && <div className="text-xs text-muted-foreground font-mono truncate">Tx: {paymentTxHash}</div>}
             <div className="text-xs text-muted-foreground">Loading results...</div>
           </motion.div>
         ) : isProcessing ? (
           <div className="p-6 rounded-lg border border-primary/30 bg-primary/5 space-y-3">
             <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
             <div className="text-primary text-sm font-medium">
-              {(musdPending || btcPending) ? "Confirm transaction in your wallet..." : "Waiting for on-chain confirmation..."}
+              {isConnecting
+                ? "Opening wallet connection..."
+                : isSwitchingChain
+                  ? "Switching to Mezo Matsnet..."
+                  : musdPending || btcPending
+                    ? "Confirm transaction in your wallet..."
+                    : "Waiting for on-chain confirmation..."}
             </div>
-            <div className="text-xs text-muted-foreground">
-              {pendingAction === "musd" ? `Transferring ${MUSD_PAYMENT_DISPLAY} MUSD` : `Transferring ${BTC_PAYMENT_DISPLAY} BTC`} to treasury
-            </div>
+            <div className="text-xs text-muted-foreground">Preparing {activePaymentLabel} payment to treasury</div>
           </div>
         ) : (
           <div className="space-y-3">
-            <Button onClick={handlePayMUSD} className="w-full gap-2 h-12 text-base" variant="default">
+            <Button onClick={() => void startPayment("musd")} className="w-full gap-2 h-12 text-base" variant="default">
               <Coins className="h-5 w-5" />
               Pay with MUSD — {MUSD_PAYMENT_DISPLAY} MUSD
             </Button>
-            <Button onClick={handlePayBTC} className="w-full gap-2 h-12 text-base" variant="outline">
+            <Button onClick={() => void startPayment("btc")} className="w-full gap-2 h-12 text-base" variant="outline">
               <Wallet className="h-5 w-5" />
               Pay with BTC — {BTC_PAYMENT_DISPLAY} BTC
             </Button>
-            {!isConnected && (
-              <p className="text-xs text-muted-foreground">
-                Your wallet will be connected automatically when you click pay.
-              </p>
-            )}
           </div>
         )}
 
         <p className="text-xs text-muted-foreground">
-          Transactions are signed via wallet on Mezo Testnet (Chain ID: 31611).
+          Transactions are signed in the connected wallet app and results unlock only after confirmed payment.
         </p>
       </div>
     </motion.div>
