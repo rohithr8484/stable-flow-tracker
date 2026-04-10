@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import TransactionFlowDiagram from "@/components/TransactionFlowDiagram";
 import RiskGauge from "@/components/RiskGauge";
+import PaymentGate from "@/components/PaymentGate";
 import { fetchTransaction, formatTokenAmount, computeRiskScore, computeSubRisks, type TxData } from "@/lib/mezoApi";
 import { toast } from "sonner";
 
@@ -21,7 +22,6 @@ function buildFlowFromTx(tx: TxData) {
   const nodes: { id: string; label: string; amount: string; currency: string; type: "source" | "intermediary" | "destination" }[] = [];
   const edges: { from: string; to: string }[] = [];
   const seenAddresses = new Map<string, string>();
-
   let nodeId = 1;
   const getNodeId = (hash: string, name: string | null, type: "source" | "intermediary" | "destination") => {
     if (seenAddresses.has(hash)) return seenAddresses.get(hash)!;
@@ -30,56 +30,35 @@ function buildFlowFromTx(tx: TxData) {
     nodes.push({ id, label: name || `${hash.slice(0, 10)}...${hash.slice(-6)}`, amount: "", currency: "", type });
     return id;
   };
-
-  // Main from/to
   const fromId = getNodeId(tx.from.hash, tx.from.name, "source");
   const contractId = tx.to.is_contract
     ? getNodeId(tx.to.hash, tx.to.name || tx.to.implementations?.[0]?.name || "Contract", "intermediary")
     : getNodeId(tx.to.hash, tx.to.name, "destination");
   edges.push({ from: fromId, to: contractId });
-
-  // Token transfers
   tx.token_transfers.forEach((t) => {
     const amt = formatTokenAmount(t.total.value, t.total.decimals);
     const srcId = getNodeId(t.from.hash, t.from.name, "source");
     const dstId = getNodeId(t.to.hash, t.to.name, "destination");
-
     const srcNode = nodes.find(n => n.id === srcId);
     if (srcNode && !srcNode.amount) { srcNode.amount = amt; srcNode.currency = t.token.symbol; }
-
     const dstNode = nodes.find(n => n.id === dstId);
     if (dstNode && !dstNode.amount) { dstNode.amount = amt; dstNode.currency = t.token.symbol; }
-
-    if (!edges.some(e => e.from === srcId && e.to === dstId)) {
-      edges.push({ from: srcId, to: dstId });
-    }
+    if (!edges.some(e => e.from === srcId && e.to === dstId)) edges.push({ from: srcId, to: dstId });
   });
-
   return { nodes, edges };
 }
 
 function buildFindings(tx: TxData) {
   const risk = computeRiskScore(tx);
   const findings: { severity: string; text: string }[] = [];
-
-  if (tx.to.is_contract) {
-    findings.push({ severity: risk > 50 ? "high" : "medium", text: `Interaction with smart contract: ${tx.to.name || tx.to.implementations?.[0]?.name || tx.to.hash.slice(0, 16) + "..."}` });
-  }
-  if (tx.token_transfers.some(t => t.type === "token_minting")) {
-    findings.push({ severity: "high", text: "Token minting detected — new tokens created in this transaction" });
-  }
-  if (tx.token_transfers.length > 2) {
-    findings.push({ severity: "medium", text: `Multiple token transfers (${tx.token_transfers.length}) indicate complex routing` });
-  }
-  if (parseInt(tx.gas_used) > 200000) {
-    findings.push({ severity: "medium", text: `High gas consumption (${parseInt(tx.gas_used).toLocaleString()}) suggests complex contract execution` });
-  }
-
+  if (tx.to.is_contract) findings.push({ severity: risk > 50 ? "high" : "medium", text: `Interaction with smart contract: ${tx.to.name || tx.to.implementations?.[0]?.name || tx.to.hash.slice(0, 16) + "..."}` });
+  if (tx.token_transfers.some(t => t.type === "token_minting")) findings.push({ severity: "high", text: "Token minting detected — new tokens created in this transaction" });
+  if (tx.token_transfers.length > 2) findings.push({ severity: "medium", text: `Multiple token transfers (${tx.token_transfers.length}) indicate complex routing` });
+  if (parseInt(tx.gas_used) > 200000) findings.push({ severity: "medium", text: `High gas consumption (${parseInt(tx.gas_used).toLocaleString()}) suggests complex contract execution` });
   const uniqueAddresses = new Set<string>();
   tx.token_transfers.forEach(t => { uniqueAddresses.add(t.from.hash); uniqueAddresses.add(t.to.hash); });
   findings.push({ severity: "low", text: `${uniqueAddresses.size} unique entities identified in transaction flow` });
   findings.push({ severity: "info", text: `Block #${tx.block_number.toLocaleString()} · ${tx.confirmations.toLocaleString()} confirmations · ${new Date(tx.timestamp).toLocaleString()}` });
-
   return findings;
 }
 
@@ -90,16 +69,22 @@ const Investigation = () => {
   const [txData, setTxData] = useState<TxData | null>(null);
   const [error, setError] = useState("");
   const [history, setHistory] = useState<string[]>([]);
+  const [paid, setPaid] = useState(false);
+  const [pendingQuery, setPendingQuery] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setPendingQuery(query.trim());
+  };
 
   const runSearch = async (q: string) => {
-    if (!q.trim()) return;
     setLoading(true);
     setSearched(true);
     setQuery(q);
     setError("");
-
     try {
-      const tx = await fetchTransaction(q.trim());
+      const tx = await fetchTransaction(q);
       setTxData(tx);
       setHistory((prev) => [q, ...prev.filter((h) => h !== q)].slice(0, 10));
       toast.success("Transaction investigation complete");
@@ -110,6 +95,11 @@ const Investigation = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePaymentComplete = () => {
+    setPaid(true);
+    runSearch(pendingQuery);
   };
 
   const riskScore = txData ? computeRiskScore(txData) : 0;
@@ -124,112 +114,58 @@ const Investigation = () => {
         <div className="container mx-auto max-w-6xl">
           <h1 className="font-heading text-3xl font-bold text-foreground mb-8">Investigation</h1>
 
-          {/* Search */}
-          <div className="glass-card p-4 mb-8">
-            <form onSubmit={(e) => { e.preventDefault(); runSearch(query); }} className="flex gap-3">
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Enter BTC or MUSD transaction hash to investigate..."
-                className="bg-secondary border-border font-mono text-sm flex-1"
-              />
-              <Button type="submit" className="gap-2" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                Investigate
-              </Button>
-            </form>
-            {history.length > 0 && searched && (
-              <div className="flex gap-2 mt-3 flex-wrap">
-                <span className="text-xs text-muted-foreground">Recent:</span>
-                {history.slice(0, 5).map((h) => (
-                  <button key={h} onClick={() => runSearch(h)} className="text-xs font-mono text-primary hover:underline truncate max-w-[200px]">
-                    {h}
-                  </button>
-                ))}
+          {!pendingQuery ? (
+            <>
+              <div className="glass-card p-4 mb-8">
+                <form onSubmit={handleSubmit} className="flex gap-3">
+                  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Enter BTC or MUSD transaction hash to investigate..." className="bg-secondary border-border font-mono text-sm flex-1" />
+                  <Button type="submit" className="gap-2"><Search className="h-4 w-4" /> Investigate</Button>
+                </form>
               </div>
-            )}
-          </div>
-
-          {error && (
-            <div className="glass-card p-4 border border-destructive/30 flex items-center gap-2 mb-6">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-              <span className="text-sm text-destructive">{error}</span>
-            </div>
-          )}
-
-          {!searched ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-lg mx-auto text-center py-16">
-              <div className="p-4 rounded-2xl bg-primary/10 w-fit mx-auto mb-4">
-                <MessageSquare className="h-8 w-8 text-primary" />
-              </div>
-              <h2 className="font-heading text-xl font-semibold text-foreground mb-2">Investigative Assistant</h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                Enter a BTC transaction hash, MUSD hash, or smart contract hash to trace transaction flows, identify connected entities, and assess risk.
-              </p>
-            </motion.div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-lg mx-auto text-center py-16">
+                <div className="p-4 rounded-2xl bg-primary/10 w-fit mx-auto mb-4"><MessageSquare className="h-8 w-8 text-primary" /></div>
+                <h2 className="font-heading text-xl font-semibold text-foreground mb-2">Investigative Assistant</h2>
+                <p className="text-sm text-muted-foreground mb-6">Enter a BTC transaction hash, MUSD hash, or smart contract hash to trace transaction flows, identify connected entities, and assess risk.</p>
+              </motion.div>
+            </>
+          ) : !paid ? (
+            <PaymentGate onPaymentComplete={handlePaymentComplete} serviceName="Investigation" />
           ) : loading ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
               <Loader2 className="h-10 w-10 text-primary animate-spin mx-auto mb-4" />
               <p className="text-muted-foreground text-sm">Fetching on-chain data and tracing transaction flows...</p>
-              <p className="text-xs text-muted-foreground mt-1">Analyzing {query.slice(0, 20)}...</p>
             </motion.div>
+          ) : error ? (
+            <div className="glass-card p-4 border border-destructive/30 flex items-center gap-2 mb-6">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <span className="text-sm text-destructive">{error}</span>
+              <button className="ml-auto text-sm text-primary hover:underline" onClick={() => { setPendingQuery(""); setPaid(false); setError(""); }}>Try Again</button>
+            </div>
           ) : txData ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              {/* Tx hash bar */}
               <div className="glass-card p-4 flex items-center justify-between">
                 <div>
                   <span className="text-xs text-muted-foreground">Transaction Hash</span>
                   <div className="flex items-center gap-2">
                     <span className="text-primary font-mono text-sm">{txData.hash}</span>
-                    <button className="text-muted-foreground hover:text-foreground" onClick={() => { navigator.clipboard.writeText(txData.hash); toast.info("Copied"); }}>
-                      <Copy className="h-4 w-4" />
-                    </button>
-                    <a href={`https://explorer.test.mezo.org/tx/${txData.hash}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
+                    <button className="text-muted-foreground hover:text-foreground" onClick={() => { navigator.clipboard.writeText(txData.hash); toast.info("Copied"); }}><Copy className="h-4 w-4" /></button>
+                    <a href={`https://explorer.test.mezo.org/tx/${txData.hash}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground"><ExternalLink className="h-4 w-4" /></a>
                   </div>
                 </div>
-                <button className="text-sm text-primary hover:underline" onClick={() => { setSearched(false); setTxData(null); setQuery(""); }}>
-                  New Investigation
-                </button>
+                <button className="text-sm text-primary hover:underline" onClick={() => { setSearched(false); setTxData(null); setQuery(""); setPaid(false); setPendingQuery(""); }}>New Investigation</button>
               </div>
 
-              {/* Transaction Details */}
               <div className="glass-card p-5">
                 <h3 className="font-heading font-semibold text-foreground mb-3">Transaction Details</h3>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground text-xs">Block</span>
-                    <div className="font-mono text-foreground">{txData.block_number.toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Method</span>
-                    <div className="text-foreground">{txData.decoded_input?.method_call || txData.method || "transfer"}</div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Gas Used</span>
-                    <div className="font-mono text-foreground">{parseInt(txData.gas_used).toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Confirmations</span>
-                    <div className="font-mono text-foreground">{txData.confirmations.toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">From</span>
-                    <div className="font-mono text-foreground truncate">{txData.from.name || txData.from.hash}</div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">To</span>
-                    <div className="font-mono text-foreground truncate">{txData.to.name || txData.to.hash}</div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Timestamp</span>
-                    <div className="text-foreground">{new Date(txData.timestamp).toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Status</span>
-                    <div className={txData.status === "ok" ? "text-success font-medium" : "text-destructive font-medium"}>{txData.status}</div>
-                  </div>
+                  <div><span className="text-muted-foreground text-xs">Block</span><div className="font-mono text-foreground">{txData.block_number.toLocaleString()}</div></div>
+                  <div><span className="text-muted-foreground text-xs">Method</span><div className="text-foreground">{txData.decoded_input?.method_call || txData.method || "transfer"}</div></div>
+                  <div><span className="text-muted-foreground text-xs">Gas Used</span><div className="font-mono text-foreground">{parseInt(txData.gas_used).toLocaleString()}</div></div>
+                  <div><span className="text-muted-foreground text-xs">Confirmations</span><div className="font-mono text-foreground">{txData.confirmations.toLocaleString()}</div></div>
+                  <div><span className="text-muted-foreground text-xs">From</span><div className="font-mono text-foreground truncate">{txData.from.name || txData.from.hash}</div></div>
+                  <div><span className="text-muted-foreground text-xs">To</span><div className="font-mono text-foreground truncate">{txData.to.name || txData.to.hash}</div></div>
+                  <div><span className="text-muted-foreground text-xs">Timestamp</span><div className="text-foreground">{new Date(txData.timestamp).toLocaleString()}</div></div>
+                  <div><span className="text-muted-foreground text-xs">Status</span><div className={txData.status === "ok" ? "text-success font-medium" : "text-destructive font-medium"}>{txData.status}</div></div>
                 </div>
               </div>
 
@@ -242,14 +178,9 @@ const Investigation = () => {
 
                 <TabsContent value="flow">
                   <div className="grid lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2">
-                      {flow && <TransactionFlowDiagram nodes={flow.nodes} edges={flow.edges} />}
-                    </div>
+                    <div className="lg:col-span-2">{flow && <TransactionFlowDiagram nodes={flow.nodes} edges={flow.edges} />}</div>
                     <div className="space-y-6">
-                      <div className="glass-card p-6 flex flex-col items-center">
-                        <RiskGauge score={riskScore} size={180} />
-                      </div>
-                      {/* Token Transfers */}
+                      <div className="glass-card p-6 flex flex-col items-center"><RiskGauge score={riskScore} size={180} /></div>
                       {txData.token_transfers.length > 0 && (
                         <div className="glass-card p-5">
                           <h4 className="font-heading font-semibold text-foreground text-sm mb-3">Token Transfers ({txData.token_transfers.length})</h4>
@@ -257,17 +188,11 @@ const Investigation = () => {
                             {txData.token_transfers.map((t, i) => (
                               <div key={i} className="bg-secondary/50 rounded-lg p-3">
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${t.type === "token_minting" ? "bg-success/20 text-success" : "bg-primary/20 text-primary"}`}>
-                                    {t.type.replace("_", " ")}
-                                  </span>
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${t.type === "token_minting" ? "bg-success/20 text-success" : "bg-primary/20 text-primary"}`}>{t.type.replace("_", " ")}</span>
                                   <span>{t.token.symbol}</span>
                                 </div>
-                                <div className="text-xs font-mono text-muted-foreground">
-                                  {t.from.hash.slice(0, 8)}... → {t.to.name || `${t.to.hash.slice(0, 8)}...`}
-                                </div>
-                                <div className="text-sm font-bold text-foreground mt-1">
-                                  {formatTokenAmount(t.total.value, t.total.decimals)} {t.token.symbol}
-                                </div>
+                                <div className="text-xs font-mono text-muted-foreground">{t.from.hash.slice(0, 8)}... → {t.to.name || `${t.to.hash.slice(0, 8)}...`}</div>
+                                <div className="text-sm font-bold text-foreground mt-1">{formatTokenAmount(t.total.value, t.total.decimals)} {t.token.symbol}</div>
                               </div>
                             ))}
                           </div>
@@ -299,9 +224,7 @@ const Investigation = () => {
                     </div>
                     <div className="glass-card p-6">
                       <h3 className="font-heading font-semibold text-foreground mb-4">Risk Summary</h3>
-                      <div className="flex justify-center mb-6">
-                        <RiskGauge score={riskScore} size={160} />
-                      </div>
+                      <div className="flex justify-center mb-6"><RiskGauge score={riskScore} size={160} /></div>
                       <div className="space-y-3">
                         {[
                           { label: "Incoming Risk", value: subRisks.incoming },
@@ -336,12 +259,11 @@ const Investigation = () => {
                               <div className="text-xs text-muted-foreground capitalize">{node.type}</div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            {node.amount && <div className="text-sm font-mono text-foreground">{node.amount} {node.currency}</div>}
-                            <button onClick={() => { navigator.clipboard.writeText(node.label); toast.info("Copied address"); }} className="text-xs text-primary hover:underline">
-                              Copy Address
-                            </button>
-                          </div>
+                          {node.amount && (
+                            <div className="text-right">
+                              <div className="text-sm font-bold text-foreground">{node.amount} {node.currency}</div>
+                            </div>
+                          )}
                         </motion.div>
                       ))}
                     </div>

@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import AddressInput from "@/components/AddressInput";
 import RiskGauge from "@/components/RiskGauge";
 import TransferTable from "@/components/TransferTable";
+import PaymentGate from "@/components/PaymentGate";
 import { fetchTransaction, formatTokenAmount, computeRiskScore, computeSubRisks, type TxData } from "@/lib/mezoApi";
 import { toast } from "sonner";
 
@@ -14,25 +15,26 @@ const RiskAnalysis = () => {
   const [hashes, setHashes] = useState({ send: "", receive: "", liquidityPool: "" });
   const [txResults, setTxResults] = useState<{ send?: TxData; receive?: TxData; liquidityPool?: TxData }>({});
   const [error, setError] = useState("");
+  const [paid, setPaid] = useState(false);
+  const [pendingInput, setPendingInput] = useState<{ send: string; receive: string; liquidityPool: string } | null>(null);
 
-  const handleAnalyze = async (input: { send: string; receive: string; liquidityPool: string }) => {
+  const handleAnalyze = (input: { send: string; receive: string; liquidityPool: string }) => {
+    setPendingInput(input);
+  };
+
+  const executeAnalysis = async () => {
+    if (!pendingInput) return;
     setLoading(true);
     setError("");
-    setHashes(input);
+    setHashes(pendingInput);
 
     try {
       const results: { send?: TxData; receive?: TxData; liquidityPool?: TxData } = {};
       const fetches: Promise<void>[] = [];
 
-      if (input.send) {
-        fetches.push(fetchTransaction(input.send).then(d => { results.send = d; }));
-      }
-      if (input.receive) {
-        fetches.push(fetchTransaction(input.receive).then(d => { results.receive = d; }));
-      }
-      if (input.liquidityPool) {
-        fetches.push(fetchTransaction(input.liquidityPool).then(d => { results.liquidityPool = d; }));
-      }
+      if (pendingInput.send) fetches.push(fetchTransaction(pendingInput.send).then(d => { results.send = d; }));
+      if (pendingInput.receive) fetches.push(fetchTransaction(pendingInput.receive).then(d => { results.receive = d; }));
+      if (pendingInput.liquidityPool) fetches.push(fetchTransaction(pendingInput.liquidityPool).then(d => { results.liquidityPool = d; }));
 
       await Promise.all(fetches);
       setTxResults(results);
@@ -46,11 +48,15 @@ const RiskAnalysis = () => {
     }
   };
 
+  const handlePaymentComplete = () => {
+    setPaid(true);
+    executeAnalysis();
+  };
+
   const primaryTx = txResults.send || txResults.receive || txResults.liquidityPool;
   const riskScore = primaryTx ? computeRiskScore(primaryTx) : 0;
   const subRisks = primaryTx ? computeSubRisks(primaryTx) : { incoming: 0, outgoing: 0, indirect: 0 };
 
-  // Build transfers from all fetched txs
   const allTransfers = Object.entries(txResults).flatMap(([key, tx]) => {
     if (!tx) return [];
     return tx.token_transfers.map((t, i) => ({
@@ -63,7 +69,6 @@ const RiskAnalysis = () => {
     }));
   });
 
-  // Compute totals
   const totalReceived = Object.values(txResults).reduce((sum, tx) => {
     if (!tx) return sum;
     return sum + tx.token_transfers
@@ -92,7 +97,7 @@ const RiskAnalysis = () => {
         <div className="container mx-auto max-w-6xl">
           <h1 className="font-heading text-3xl font-bold text-foreground mb-8">Risk Analysis</h1>
 
-          {!analyzed ? (
+          {!pendingInput ? (
             <div className="max-w-xl mx-auto">
               <AddressInput onSubmit={handleAnalyze} loading={loading} />
               {error && (
@@ -102,9 +107,15 @@ const RiskAnalysis = () => {
                 </div>
               )}
             </div>
+          ) : !paid ? (
+            <PaymentGate onPaymentComplete={handlePaymentComplete} serviceName="Risk Analysis" />
+          ) : !analyzed ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
+              <Loader2 className="h-10 w-10 text-primary animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground text-sm">Analyzing transactions...</p>
+            </motion.div>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              {/* Primary tx hash bar */}
               <div className="glass-card p-4 flex items-center justify-between">
                 <div>
                   <span className="text-xs text-muted-foreground">Send Transaction Hash</span>
@@ -122,12 +133,11 @@ const RiskAnalysis = () => {
                     )}
                   </div>
                 </div>
-                <button className="text-sm text-primary hover:underline" onClick={() => { setAnalyzed(false); setTxResults({}); }}>
+                <button className="text-sm text-primary hover:underline" onClick={() => { setAnalyzed(false); setTxResults({}); setPaid(false); setPendingInput(null); }}>
                   New Analysis
                 </button>
               </div>
 
-              {/* Other hashes */}
               {(hashes.receive || hashes.liquidityPool) && (
                 <div className="grid sm:grid-cols-2 gap-4">
                   {hashes.receive && (
@@ -157,48 +167,22 @@ const RiskAnalysis = () => {
                 </div>
               )}
 
-              {/* Transaction Details */}
               {primaryTx && (
                 <div className="glass-card p-5">
                   <h3 className="font-heading font-semibold text-foreground mb-3">Transaction Details</h3>
                   <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground text-xs">Block</span>
-                      <div className="font-mono text-foreground">{primaryTx.block_number.toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs">Method</span>
-                      <div className="text-foreground">{primaryTx.decoded_input?.method_call || primaryTx.method || "transfer"}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs">Gas Used</span>
-                      <div className="font-mono text-foreground">{parseInt(primaryTx.gas_used).toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs">Confirmations</span>
-                      <div className="font-mono text-foreground">{primaryTx.confirmations.toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs">From</span>
-                      <div className="font-mono text-foreground truncate">{primaryTx.from.hash}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs">To</span>
-                      <div className="font-mono text-foreground truncate">{primaryTx.to.name || primaryTx.to.hash}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs">Timestamp</span>
-                      <div className="text-foreground">{new Date(primaryTx.timestamp).toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs">Nonce</span>
-                      <div className="font-mono text-foreground">{primaryTx.nonce}</div>
-                    </div>
+                    <div><span className="text-muted-foreground text-xs">Block</span><div className="font-mono text-foreground">{primaryTx.block_number.toLocaleString()}</div></div>
+                    <div><span className="text-muted-foreground text-xs">Method</span><div className="text-foreground">{primaryTx.decoded_input?.method_call || primaryTx.method || "transfer"}</div></div>
+                    <div><span className="text-muted-foreground text-xs">Gas Used</span><div className="font-mono text-foreground">{parseInt(primaryTx.gas_used).toLocaleString()}</div></div>
+                    <div><span className="text-muted-foreground text-xs">Confirmations</span><div className="font-mono text-foreground">{primaryTx.confirmations.toLocaleString()}</div></div>
+                    <div><span className="text-muted-foreground text-xs">From</span><div className="font-mono text-foreground truncate">{primaryTx.from.hash}</div></div>
+                    <div><span className="text-muted-foreground text-xs">To</span><div className="font-mono text-foreground truncate">{primaryTx.to.name || primaryTx.to.hash}</div></div>
+                    <div><span className="text-muted-foreground text-xs">Timestamp</span><div className="text-foreground">{new Date(primaryTx.timestamp).toLocaleString()}</div></div>
+                    <div><span className="text-muted-foreground text-xs">Nonce</span><div className="font-mono text-foreground">{primaryTx.nonce}</div></div>
                   </div>
                 </div>
               )}
 
-              {/* Token Transfers Detail */}
               {primaryTx && primaryTx.token_transfers.length > 0 && (
                 <div className="glass-card p-5">
                   <h3 className="font-heading font-semibold text-foreground mb-3">Token Transfers ({primaryTx.token_transfers.length})</h3>
@@ -228,45 +212,26 @@ const RiskAnalysis = () => {
               )}
 
               <div className="grid lg:grid-cols-3 gap-6">
-                {/* Risk Score */}
                 <div className="glass-card p-6 flex flex-col items-center">
                   <RiskGauge score={riskScore} size={220} />
-                  <div className="mt-4 text-xs text-muted-foreground">
-                    Evaluated from on-chain data
-                  </div>
+                  <div className="mt-4 text-xs text-muted-foreground">Evaluated from on-chain data</div>
                 </div>
-
-                {/* Summary cards */}
                 <div className="space-y-4">
                   <div className="glass-card p-5">
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                      <ArrowDownCircle className="h-3.5 w-3.5" /> Total Token Volume
-                    </div>
-                    <div className="font-heading text-2xl font-bold text-foreground">
-                      {totalReceived.toLocaleString(undefined, { maximumFractionDigits: 4 })} {primarySymbol}
-                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><ArrowDownCircle className="h-3.5 w-3.5" /> Total Token Volume</div>
+                    <div className="font-heading text-2xl font-bold text-foreground">{totalReceived.toLocaleString(undefined, { maximumFractionDigits: 4 })} {primarySymbol}</div>
                   </div>
                   <div className="glass-card p-5">
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                      <ArrowUpCircle className="h-3.5 w-3.5" /> Sent Volume
-                    </div>
-                    <div className="font-heading text-2xl font-bold text-foreground">
-                      {totalSent.toLocaleString(undefined, { maximumFractionDigits: 4 })} {primarySymbol}
-                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><ArrowUpCircle className="h-3.5 w-3.5" /> Sent Volume</div>
+                    <div className="font-heading text-2xl font-bold text-foreground">{totalSent.toLocaleString(undefined, { maximumFractionDigits: 4 })} {primarySymbol}</div>
                   </div>
                 </div>
-
-                {/* Risk breakdown */}
                 <div className="space-y-4">
                   {riskLevels.map((r) => (
                     <div key={r.label} className="glass-card p-4">
                       <div className="text-xs text-muted-foreground mb-1">{r.label}</div>
-                      <div className="font-heading text-xl font-bold text-foreground">
-                        {r.score}<span className="text-sm text-muted-foreground font-normal">/100</span>
-                      </div>
-                      <span className={`text-xs px-2 py-0.5 rounded ${r.color}/20 text-foreground font-medium mt-1 inline-block`}>
-                        {r.level}
-                      </span>
+                      <div className="font-heading text-xl font-bold text-foreground">{r.score}<span className="text-sm text-muted-foreground font-normal">/100</span></div>
+                      <span className={`text-xs px-2 py-0.5 rounded ${r.color}/20 text-foreground font-medium mt-1 inline-block`}>{r.level}</span>
                       <div className="mt-2 h-1.5 bg-secondary rounded-full overflow-hidden">
                         <div className={`h-full ${r.color} rounded-full`} style={{ width: `${r.score}%` }} />
                       </div>
@@ -275,7 +240,6 @@ const RiskAnalysis = () => {
                 </div>
               </div>
 
-              {/* Transfers */}
               {allTransfers.length > 0 && <TransferTable transfers={allTransfers} />}
             </motion.div>
           )}
