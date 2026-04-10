@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Shield, Menu, X } from "lucide-react";
 import { useState } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import WalletConnectControl from "@/components/WalletConnectControl";
 
 const navLinks = [
   { to: "/", label: "Home" },
@@ -18,13 +18,13 @@ const Navbar = () => {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-t-0 border-x-0 rounded-none">
-      <div className="container mx-auto flex items-center justify-between h-16 px-4">
-        <Link to="/" className="flex items-center gap-2">
+      <div className="container mx-auto flex items-center justify-between h-16 px-4 gap-4">
+        <Link to="/" className="flex items-center gap-2 shrink-0">
           <Shield className="h-7 w-7 text-primary" />
           <span className="font-heading font-bold text-lg text-foreground hidden sm:inline">BTC Treasury</span>
         </Link>
 
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-1 min-w-0">
           {navLinks.map((l) => (
             <Link
               key={l.to}
@@ -40,13 +40,9 @@ const Navbar = () => {
           ))}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <div className="hidden sm:block">
-            <ConnectButton
-              accountStatus="avatar"
-              chainStatus="icon"
-              showBalance={false}
-            />
+            <WalletConnectControl size="sm" />
           </div>
           <button className="md:hidden text-foreground" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -69,7 +65,7 @@ const Navbar = () => {
             </Link>
           ))}
           <div className="pt-2 px-4">
-            <ConnectButton accountStatus="avatar" chainStatus="icon" showBalance={false} />
+            <WalletConnectControl className="w-full" />
           </div>
         </div>
       )}
