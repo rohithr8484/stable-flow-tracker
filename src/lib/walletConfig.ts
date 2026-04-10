@@ -16,8 +16,11 @@ export const mezoTestnet = defineChain({
 
 // MUSD token contract on Mezo testnet
 export const MUSD_CONTRACT = "0x637e25b1dD53ECF1c3E3ea9aCE3ACa92eE17150c" as const;
-export const PAYMENT_AMOUNT = "200000000000000000" as const; // 0.2 in 18 decimals
-export const PAYMENT_AMOUNT_DISPLAY = "0.2";
+
+// Payment amounts
+export const MUSD_PAYMENT_AMOUNT = "200000000000000000" as const; // 0.2 MUSD (18 decimals)
+export const MUSD_PAYMENT_DISPLAY = "0.2";
+export const BTC_PAYMENT_DISPLAY = "0.0002";
 
 // Treasury address to receive payments
 export const TREASURY_ADDRESS = "0x000000000000000000000000000000000000dEaD" as const;

@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSendTransaction } from "wagmi";
-import { parseEther, encodeFunctionData } from "viem";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useState, useEffect } from "react";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSendTransaction, useConnect } from "wagmi";
+import { parseEther } from "viem";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { motion } from "framer-motion";
 import { Wallet, Coins, Loader2, CheckCircle, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MUSD_CONTRACT, TREASURY_ADDRESS, PAYMENT_AMOUNT, PAYMENT_AMOUNT_DISPLAY } from "@/lib/walletConfig";
+import { MUSD_CONTRACT, TREASURY_ADDRESS, MUSD_PAYMENT_AMOUNT, MUSD_PAYMENT_DISPLAY, BTC_PAYMENT_DISPLAY } from "@/lib/walletConfig";
 
 const ERC20_ABI = [
   {
@@ -27,34 +27,65 @@ interface PaymentGateProps {
 
 export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentGateProps) {
   const { isConnected, address } = useAccount();
-  const [paymentMethod, setPaymentMethod] = useState<"musd" | "btc" | null>(null);
+  const { openConnectModal } = useConnectModal();
+  const [pendingAction, setPendingAction] = useState<"musd" | "btc" | null>(null);
   const [paid, setPaid] = useState(false);
 
-  // MUSD ERC20 transfer
-  const { writeContract, data: musdHash, isPending: musdPending } = useWriteContract();
+  const { writeContract, data: musdHash, isPending: musdPending, reset: resetMusd } = useWriteContract();
   const { isLoading: musdConfirming, isSuccess: musdSuccess } = useWaitForTransactionReceipt({ hash: musdHash });
 
-  // BTC native transfer
-  const { sendTransaction, data: btcHash, isPending: btcPending } = useSendTransaction();
+  const { sendTransaction, data: btcHash, isPending: btcPending, reset: resetBtc } = useSendTransaction();
   const { isLoading: btcConfirming, isSuccess: btcSuccess } = useWaitForTransactionReceipt({ hash: btcHash });
 
+  // When user clicks pay but isn't connected, open connect modal and queue the action
   const handlePayMUSD = () => {
-    setPaymentMethod("musd");
+    if (!isConnected) {
+      setPendingAction("musd");
+      openConnectModal?.();
+      return;
+    }
+    executeMUSDPayment();
+  };
+
+  const handlePayBTC = () => {
+    if (!isConnected) {
+      setPendingAction("btc");
+      openConnectModal?.();
+      return;
+    }
+    executeBTCPayment();
+  };
+
+  const executeMUSDPayment = () => {
+    setPendingAction("musd");
     writeContract({
       address: MUSD_CONTRACT,
       abi: ERC20_ABI,
       functionName: "transfer",
-      args: [TREASURY_ADDRESS, BigInt(PAYMENT_AMOUNT)],
+      args: [TREASURY_ADDRESS, BigInt(MUSD_PAYMENT_AMOUNT)],
     });
   };
 
-  const handlePayBTC = () => {
-    setPaymentMethod("btc");
+  const executeBTCPayment = () => {
+    setPendingAction("btc");
     sendTransaction({
       to: TREASURY_ADDRESS,
-      value: parseEther(PAYMENT_AMOUNT_DISPLAY),
+      value: parseEther(BTC_PAYMENT_DISPLAY),
     });
   };
+
+  // After wallet connects, auto-trigger the pending payment
+  useEffect(() => {
+    if (isConnected && pendingAction) {
+      const action = pendingAction;
+      // Small delay to let wallet connection settle
+      const timer = setTimeout(() => {
+        if (action === "musd") executeMUSDPayment();
+        else executeBTCPayment();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected]);
 
   const isProcessing = musdPending || btcPending || musdConfirming || btcConfirming;
   const isSuccess = musdSuccess || btcSuccess;
@@ -63,6 +94,8 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
     setPaid(true);
     setTimeout(() => onPaymentComplete(), 1500);
   }
+
+  const paymentTxHash = musdHash || btcHash;
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto">
@@ -76,64 +109,67 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
             Payment Required
           </h2>
           <p className="text-sm text-muted-foreground">
-            Connect your wallet and pay {PAYMENT_AMOUNT_DISPLAY} MUSD or {PAYMENT_AMOUNT_DISPLAY} BTC to access{" "}
+            Pay <span className="text-foreground font-semibold">{MUSD_PAYMENT_DISPLAY} MUSD</span> or{" "}
+            <span className="text-foreground font-semibold">{BTC_PAYMENT_DISPLAY} BTC</span> to access{" "}
             <span className="text-foreground font-medium">{serviceName}</span>.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Clicking pay will open your wallet for confirmation on Mezo Matsnet (Chain ID: 31611).
           </p>
         </div>
 
-        {/* Step 1: Connect Wallet */}
-        <div className={`p-4 rounded-lg border ${isConnected ? "border-success/30 bg-success/5" : "border-border bg-secondary/30"}`}>
-          <div className="flex items-center gap-3 mb-3">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${isConnected ? "bg-success text-success-foreground" : "bg-primary text-primary-foreground"}`}>
-              {isConnected ? <CheckCircle className="h-4 w-4" /> : "1"}
-            </div>
-            <span className="text-sm font-medium text-foreground">Connect Wallet</span>
-          </div>
-          {isConnected ? (
-            <div className="text-xs text-muted-foreground font-mono truncate">
+        {/* Wallet status */}
+        {isConnected && (
+          <div className="p-3 rounded-lg border border-success/30 bg-success/5 flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-success shrink-0" />
+            <span className="text-xs text-muted-foreground font-mono truncate">
               Connected: {address}
-            </div>
-          ) : (
-            <div className="flex justify-center">
-              <ConnectButton />
-            </div>
-          )}
-        </div>
-
-        {/* Step 2: Pay */}
-        <div className={`p-4 rounded-lg border ${!isConnected ? "opacity-50 pointer-events-none border-border bg-secondary/20" : paid ? "border-success/30 bg-success/5" : "border-border bg-secondary/30"}`}>
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${paid ? "bg-success text-success-foreground" : "bg-primary text-primary-foreground"}`}>
-              {paid ? <CheckCircle className="h-4 w-4" /> : "2"}
-            </div>
-            <span className="text-sm font-medium text-foreground">Pay to Access</span>
+            </span>
           </div>
+        )}
 
-          {paid ? (
-            <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="text-success text-sm font-medium flex items-center justify-center gap-2">
-              <CheckCircle className="h-5 w-5" /> Payment confirmed! Redirecting...
-            </motion.div>
-          ) : isProcessing ? (
-            <div className="flex items-center justify-center gap-2 text-primary text-sm">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              {(musdPending || btcPending) ? "Confirm in your wallet..." : "Waiting for confirmation..."}
+        {/* Payment state */}
+        {paid ? (
+          <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="p-6 rounded-lg border border-success/30 bg-success/5 space-y-3">
+            <CheckCircle className="h-10 w-10 text-success mx-auto" />
+            <div className="text-success text-sm font-semibold">Payment confirmed!</div>
+            {paymentTxHash && (
+              <div className="text-xs text-muted-foreground font-mono truncate">
+                Tx: {paymentTxHash}
+              </div>
+            )}
+            <div className="text-xs text-muted-foreground">Loading results...</div>
+          </motion.div>
+        ) : isProcessing ? (
+          <div className="p-6 rounded-lg border border-primary/30 bg-primary/5 space-y-3">
+            <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
+            <div className="text-primary text-sm font-medium">
+              {(musdPending || btcPending) ? "Confirm transaction in your wallet..." : "Waiting for on-chain confirmation..."}
             </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button onClick={handlePayMUSD} disabled={!isConnected} className="flex-1 gap-2" variant="default">
-                <Coins className="h-4 w-4" />
-                Pay {PAYMENT_AMOUNT_DISPLAY} MUSD
-              </Button>
-              <Button onClick={handlePayBTC} disabled={!isConnected} className="flex-1 gap-2" variant="outline">
-                <Wallet className="h-4 w-4" />
-                Pay {PAYMENT_AMOUNT_DISPLAY} BTC
-              </Button>
+            <div className="text-xs text-muted-foreground">
+              {pendingAction === "musd" ? `Transferring ${MUSD_PAYMENT_DISPLAY} MUSD` : `Transferring ${BTC_PAYMENT_DISPLAY} BTC`} to treasury
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <Button onClick={handlePayMUSD} className="w-full gap-2 h-12 text-base" variant="default">
+              <Coins className="h-5 w-5" />
+              Pay with MUSD — {MUSD_PAYMENT_DISPLAY} MUSD
+            </Button>
+            <Button onClick={handlePayBTC} className="w-full gap-2 h-12 text-base" variant="outline">
+              <Wallet className="h-5 w-5" />
+              Pay with BTC — {BTC_PAYMENT_DISPLAY} BTC
+            </Button>
+            {!isConnected && (
+              <p className="text-xs text-muted-foreground">
+                Your wallet will be connected automatically when you click pay.
+              </p>
+            )}
+          </div>
+        )}
 
         <p className="text-xs text-muted-foreground">
-          Payments are processed on Mezo Matsnet. Ensure you have sufficient balance.
+          Transactions are signed via wallet on Mezo Testnet (Chain ID: 31611).
         </p>
       </div>
     </motion.div>
