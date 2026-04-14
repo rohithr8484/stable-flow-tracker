@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { Shield, Search, FileCheck, ArrowRight, Cpu, Lock, BarChart3, Globe, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import WalletConnectControl from "@/components/WalletConnectControl";
+import MezoPassportButton from "@/components/MezoPassportButton";
+import OracleFeedsBanner from "@/components/OracleFeedsBanner";
 import Navbar from "@/components/Navbar";
 import heroImg from "@/assets/hero-treasury.jpg";
 import riskImg from "@/assets/service-risk.jpg";
@@ -74,6 +76,7 @@ const Index = () => (
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
             <WalletConnectControl size="lg" />
+            <MezoPassportButton size="lg" />
             <Button asChild size="lg" className="gap-2">
               <Link to="/risk-analysis">
                 Start Analysis <ArrowRight className="h-4 w-4" />
@@ -149,6 +152,9 @@ const Index = () => (
         </div>
       </div>
     </section>
+
+    {/* Oracle Feeds */}
+    <OracleFeedsBanner />
 
     {/* Footer */}
     <footer className="py-8 px-4 border-t border-border">
