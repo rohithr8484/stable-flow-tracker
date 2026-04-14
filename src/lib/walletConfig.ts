@@ -1,5 +1,3 @@
-import { createConfig, http } from "wagmi";
-import { injected, walletConnect } from "wagmi/connectors";
 import { defineChain } from "viem";
 
 export const mezoTestnet = defineChain({
@@ -41,13 +39,13 @@ export const ORACLE_FEEDS = [
   },
 ] as const;
 
-export const config = createConfig({
-  chains: [mezoTestnet],
-  connectors: [
-    injected(),
-    walletConnect({ projectId: WALLETCONNECT_PROJECT_ID }),
-  ],
-  transports: {
-    [mezoTestnet.id]: http("https://rpc.test.mezo.org"),
-  },
+// Mezo Passport config (includes RainbowKit + WalletConnect)
+import { getConfig, getDefaultWallets } from "@mezo-org/passport";
+
+export const config = getConfig({
+  appName: "BTC Treasury",
+  appDescription: "BTC Treasury Management & Institutional Services",
+  walletConnectProjectId: WALLETCONNECT_PROJECT_ID,
+  mezoNetwork: "testnet",
+  wallets: getDefaultWallets("testnet"),
 });
