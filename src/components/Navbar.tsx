@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Shield, Menu, X } from "lucide-react";
 import { useState } from "react";
 import WalletConnectControl from "@/components/WalletConnectControl";
+import MezoPassportButton from "@/components/MezoPassportButton";
 
 const navLinks = [
   { to: "/", label: "Home" },
@@ -41,7 +42,8 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <div className="hidden sm:block">
+          <div className="hidden sm:flex items-center gap-2">
+            <MezoPassportButton />
             <WalletConnectControl size="sm" />
           </div>
           <button className="md:hidden text-foreground" onClick={() => setMobileOpen(!mobileOpen)}>
@@ -64,7 +66,8 @@ const Navbar = () => {
               {l.label}
             </Link>
           ))}
-          <div className="pt-2 px-4">
+          <div className="pt-2 px-4 space-y-2">
+            <MezoPassportButton className="w-full" />
             <WalletConnectControl className="w-full" />
           </div>
         </div>

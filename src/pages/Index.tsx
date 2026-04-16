@@ -4,6 +4,8 @@ import { Shield, Search, FileCheck, ArrowRight, Cpu, Lock, BarChart3, Globe, Shi
 import { Button } from "@/components/ui/button";
 import WalletConnectControl from "@/components/WalletConnectControl";
 import Navbar from "@/components/Navbar";
+import MezoPassportButton from "@/components/MezoPassportButton";
+import PriceFeed from "@/components/PriceFeed";
 import heroImg from "@/assets/hero-treasury.jpg";
 import riskImg from "@/assets/service-risk.jpg";
 import investigationImg from "@/assets/service-investigation.jpg";
@@ -73,6 +75,7 @@ const Index = () => (
             Analyze risk, trace transactions, and maintain regulatory compliance at scale.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+            <MezoPassportButton />
             <WalletConnectControl size="lg" />
             <Button asChild size="lg" className="gap-2">
               <Link to="/risk-analysis">
@@ -86,6 +89,9 @@ const Index = () => (
         </motion.div>
       </div>
     </section>
+
+    {/* Price Feeds */}
+    <PriceFeed />
 
     {/* Services */}
     <section className="py-20 px-4">
