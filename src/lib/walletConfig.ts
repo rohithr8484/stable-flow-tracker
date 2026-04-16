@@ -12,4 +12,5 @@ export const TREASURY_ADDRESS = "0x000000000000000000000000000000000000dEaD" as 
 
 export const config = getConfig({
   appName: "BTC Treasury",
+  walletConnectProjectId: WALLETCONNECT_PROJECT_ID,
 });
