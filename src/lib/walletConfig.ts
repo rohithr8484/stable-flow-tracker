@@ -1,6 +1,4 @@
 import { getConfig, mezoTestnet } from "@mezo-org/passport";
-import { http } from "wagmi";
-import { walletConnect, injected } from "wagmi/connectors";
 
 export { mezoTestnet };
 
@@ -14,5 +12,4 @@ export const TREASURY_ADDRESS = "0x000000000000000000000000000000000000dEaD" as 
 
 export const config = getConfig({
   appName: "BTC Treasury",
-  projectId: WALLETCONNECT_PROJECT_ID,
 });
