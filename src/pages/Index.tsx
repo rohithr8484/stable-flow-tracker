@@ -90,6 +90,9 @@ const Index = () => (
       </div>
     </section>
 
+    {/* Price Feeds */}
+    <PriceFeed />
+
     {/* Services */}
     <section className="py-20 px-4">
       <div className="container mx-auto max-w-6xl">
