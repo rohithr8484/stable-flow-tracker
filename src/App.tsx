@@ -9,6 +9,7 @@ import Compliance from "./pages/Compliance.tsx";
 import AMLScreening from "./pages/AMLScreening.tsx";
 import ContractRiskAnalyser from "./pages/ContractRiskAnalyser.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import ChatBot from "./components/ChatBot.tsx";
 
 const App = () => (
   <TooltipProvider>
@@ -24,6 +25,7 @@ const App = () => (
         <Route path="/contract-risk" element={<ContractRiskAnalyser />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <ChatBot />
     </BrowserRouter>
   </TooltipProvider>
 );
