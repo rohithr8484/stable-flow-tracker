@@ -178,6 +178,7 @@ const Investigation = () => {
                 </TabsList>
 
                 <TabsContent value="flow">
+                  <div className="mb-6">{txData && <TransactionGraph tx={txData} title="Investigation Transaction Graph" />}</div>
                   <div className="grid lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2">{flow && <TransactionFlowDiagram nodes={flow.nodes} edges={flow.edges} />}</div>
                     <div className="space-y-6">

@@ -184,6 +184,8 @@ const RiskAnalysis = () => {
                 </div>
               )}
 
+              {primaryTx && <TransactionGraph tx={primaryTx} title="Risk Analysis Transaction Graph" />}
+
               {primaryTx && primaryTx.token_transfers.length > 0 && (
                 <div className="glass-card p-5">
                   <h3 className="font-heading font-semibold text-foreground mb-3">Token Transfers ({primaryTx.token_transfers.length})</h3>
