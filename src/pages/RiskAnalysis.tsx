@@ -6,6 +6,7 @@ import AddressInput from "@/components/AddressInput";
 import RiskGauge from "@/components/RiskGauge";
 import TransferTable from "@/components/TransferTable";
 import PaymentGate from "@/components/PaymentGate";
+import TransactionGraph from "@/components/TransactionGraph";
 import { fetchTransaction, formatTokenAmount, computeRiskScore, computeSubRisks, type TxData } from "@/lib/mezoApi";
 import { toast } from "sonner";
 

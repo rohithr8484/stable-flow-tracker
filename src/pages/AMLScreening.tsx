@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import PaymentGate from "@/components/PaymentGate";
+import TransactionGraph from "@/components/TransactionGraph";
 import { fetchTransaction, formatTokenAmount, computeRiskScore, type TxData } from "@/lib/mezoApi";
 import { toast } from "sonner";
 
@@ -160,6 +161,8 @@ const AMLScreening = () => {
                   <div><span className="text-xs text-muted-foreground">Jurisdiction</span><div className="text-sm font-semibold text-foreground truncate">{result.jurisdictionRisk.split(" — ")[0]}</div></div>
                 </div>
               </div>
+
+              <TransactionGraph tx={result.tx} title="AML Transaction Flow Graph" />
 
               <div className="glass-card p-5">
                 <h3 className="font-heading font-semibold text-foreground mb-3">Transaction Details</h3>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import TransactionFlowDiagram from "@/components/TransactionFlowDiagram";
+import TransactionGraph from "@/components/TransactionGraph";
 import RiskGauge from "@/components/RiskGauge";
 import PaymentGate from "@/components/PaymentGate";
 import { fetchTransaction, formatTokenAmount, computeRiskScore, computeSubRisks, type TxData } from "@/lib/mezoApi";
