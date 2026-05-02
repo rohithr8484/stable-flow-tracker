@@ -13,7 +13,6 @@ import { Wallet, Coins, Loader2, CheckCircle, Shield, ChevronRight } from "lucid
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  mezoTestnet,
   mezoMainnet,
   SUPPORTED_CHAIN_IDS,
   PRIMARY_CHAIN,
