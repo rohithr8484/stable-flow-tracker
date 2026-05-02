@@ -29,7 +29,8 @@ export default function WalletConnectControl({
 
   const handleConnect = async (walletConnector: (typeof connectors)[number]) => {
     try {
-      await connectAsync({ connector: walletConnector, chainId: mezoTestnet.id });
+      // Don't force a chain — accept whichever supported Mezo network the wallet is on.
+      await connectAsync({ connector: walletConnector });
       setOpen(false);
       toast.success(`${getConnectorLabel(walletConnector)} connected`);
     } catch {
