@@ -1,251 +1,277 @@
 import { motion } from "framer-motion";
+import { ArrowRight, Wallet, FileCode, Coins } from "lucide-react";
 import type { TxData } from "@/lib/mezoApi";
 import { formatTokenAmount } from "@/lib/mezoApi";
 
-type NodeType = "transaction" | "output" | "address";
-interface GraphNode {
+type NodeKind = "address" | "contract" | "tx";
+
+interface FlowNode {
   id: string;
-  label: string;
-  sublabel?: string;
-  type: NodeType;
-  x: number;
-  y: number;
+  kind: NodeKind;
+  title: string;
+  address: string;
+  sub?: string;
+  column: number; // 0=left, 1=center, 2=right
+  row: number;    // vertical slot within column
 }
-interface GraphEdge {
+
+interface FlowEdge {
   from: string;
   to: string;
-  label: "OUT" | "IN" | "LOCKED";
+  label: string;
+  highlight?: boolean;
 }
 
 interface Props {
   tx?: TxData;
   title?: string;
-  /** Optional override: provide your own nodes/edges */
-  nodes?: GraphNode[];
-  edges?: GraphEdge[];
 }
 
-// Build a graph in the style of: Transaction -> Output -> (LOCKED) Address, chained via IN -> Transaction -> OUT -> Output ...
-function buildGraphFromTx(tx: TxData): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const nodes: GraphNode[] = [];
-  const edges: GraphEdge[] = [];
+const short = (h: string) => (h && h.length > 14 ? `${h.slice(0, 8)}…${h.slice(-6)}` : h || "—");
 
-  const transfers = tx.token_transfers.slice(0, 3);
-  const fallbackOutputs = transfers.length === 0 ? 2 : transfers.length;
+function buildFlow(tx: TxData): { nodes: FlowNode[]; edges: FlowEdge[] } {
+  const nodes: FlowNode[] = [];
+  const edges: FlowEdge[] = [];
 
-  // Layout coordinates (viewBox 1000x520)
-  const TX1 = { x: 90, y: 300 };
-  const OUT_TOP = { x: 320, y: 220 };
-  const OUT_BOT = { x: 320, y: 420 };
-  const ADDR_TOP_1 = { x: 320, y: 60 };
-  const TX2 = { x: 580, y: 220 };
-  const OUT_RIGHT = { x: 810, y: 220 };
-  const ADDR_TOP_2 = { x: 810, y: 60 };
-
-  const t0 = transfers[0];
-  const t1 = transfers[1];
-  const t2 = transfers[2];
-
-  const fmt = (t?: typeof transfers[number]) =>
-    t ? `${formatTokenAmount(t.total.value, t.total.decimals)} ${t.token.symbol}` : undefined;
-
-  // Source Transaction node
+  // Center: the transaction itself
   nodes.push({
-    id: "tx1",
-    label: "Transaction",
-    sublabel: tx.hash.slice(0, 10) + "…",
-    type: "transaction",
-    x: TX1.x,
-    y: TX1.y,
+    id: "tx",
+    kind: "tx",
+    title: "Transaction",
+    address: tx.hash,
+    sub: tx.method || tx.tx_types?.[0] || "transfer",
+    column: 1,
+    row: 0,
   });
 
-  // Top output + locked address
-  nodes.push({ id: "out1", label: "Output", sublabel: fmt(t0), type: "output", x: OUT_TOP.x, y: OUT_TOP.y });
+  // Left: sender
+  const fromId = `from-${tx.from.hash}`;
   nodes.push({
-    id: "addr1",
-    label: "Address",
-    sublabel: t0?.to.hash.slice(0, 8) + "…" || tx.from.hash.slice(0, 8) + "…",
-    type: "address",
-    x: ADDR_TOP_1.x,
-    y: ADDR_TOP_1.y,
+    id: fromId,
+    kind: tx.from.is_contract ? "contract" : "address",
+    title: tx.from.name || (tx.from.is_contract ? "Contract" : "Sender"),
+    address: tx.from.hash,
+    sub: "From",
+    column: 0,
+    row: 0,
   });
+  edges.push({ from: fromId, to: "tx", label: "SENDS", highlight: true });
 
-  // Bottom output (no address)
+  // Right: receiver
+  const toId = `to-${tx.to.hash}`;
   nodes.push({
-    id: "out2",
-    label: "Output",
-    sublabel: fmt(t1) || fmt(t0),
-    type: "output",
-    x: OUT_BOT.x,
-    y: OUT_BOT.y,
+    id: toId,
+    kind: tx.to.is_contract ? "contract" : "address",
+    title: tx.to.name || tx.to.implementations?.[0]?.name || (tx.to.is_contract ? "Contract" : "Receiver"),
+    address: tx.to.hash,
+    sub: "To",
+    column: 2,
+    row: 0,
   });
+  edges.push({ from: "tx", to: toId, label: "CALLS", highlight: true });
 
-  edges.push({ from: "tx1", to: "out1", label: "OUT" });
-  edges.push({ from: "tx1", to: "out2", label: "OUT" });
-  edges.push({ from: "out1", to: "addr1", label: "LOCKED" });
-
-  // Chain to a second transaction if there is more activity (multi-transfer or contract interaction)
-  if (transfers.length > 1 || tx.to.is_contract || fallbackOutputs > 1) {
+  // Token transfers — each becomes its own sender→receiver flow row.
+  const transfers = tx.token_transfers.slice(0, 4);
+  transfers.forEach((t, i) => {
+    const row = i + 1;
+    const sId = `tfrom-${i}-${t.from.hash}`;
+    const rId = `tto-${i}-${t.to.hash}`;
     nodes.push({
-      id: "tx2",
-      label: "Transaction",
-      sublabel: tx.to.is_contract ? (tx.to.name || "Contract") : "Next hop",
-      type: "transaction",
-      x: TX2.x,
-      y: TX2.y,
+      id: sId,
+      kind: t.from.is_contract ? "contract" : "address",
+      title: t.from.name || (t.from.is_contract ? "Contract" : "Address"),
+      address: t.from.hash,
+      sub: "Token sender",
+      column: 0,
+      row,
     });
     nodes.push({
-      id: "out3",
-      label: "Output",
-      sublabel: fmt(t2) || fmt(t1) || fmt(t0),
-      type: "output",
-      x: OUT_RIGHT.x,
-      y: OUT_RIGHT.y,
+      id: rId,
+      kind: t.to.is_contract ? "contract" : "address",
+      title: t.to.name || (t.to.is_contract ? "Contract" : "Address"),
+      address: t.to.hash,
+      sub: "Token recipient",
+      column: 2,
+      row,
     });
-    nodes.push({
-      id: "addr2",
-      label: "Address",
-      sublabel: (t2?.to.hash || t1?.to.hash || tx.to.hash).slice(0, 8) + "…",
-      type: "address",
-      x: ADDR_TOP_2.x,
-      y: ADDR_TOP_2.y,
-    });
-
-    edges.push({ from: "out1", to: "tx2", label: "IN" });
-    edges.push({ from: "tx2", to: "out3", label: "OUT" });
-    edges.push({ from: "out3", to: "addr2", label: "LOCKED" });
-  }
+    const amt = `${formatTokenAmount(t.total.value, t.total.decimals)} ${t.token.symbol}`;
+    // Token transfers route conceptually through the tx, draw via two edges
+    edges.push({ from: sId, to: "tx", label: amt });
+    edges.push({ from: "tx", to: rId, label: amt });
+  });
 
   return { nodes, edges };
 }
 
-const COLORS: Record<NodeType, { fill: string; stroke: string; text: string }> = {
-  transaction: { fill: "hsl(var(--primary) / 0.18)", stroke: "hsl(var(--primary))", text: "hsl(var(--primary))" },
-  output: { fill: "hsl(var(--success) / 0.18)", stroke: "hsl(var(--success))", text: "hsl(var(--success))" },
-  address: { fill: "hsl(var(--warning) / 0.2)", stroke: "hsl(var(--warning))", text: "hsl(var(--warning))" },
-};
+const NODE_W = 220;
+const NODE_H = 78;
+const COL_GAP = 140;
+const ROW_GAP = 28;
 
-const RADIUS = 46;
-
-function edgePath(from: GraphNode, to: GraphNode) {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-  const ux = dx / dist;
-  const uy = dy / dist;
-  const sx = from.x + ux * RADIUS;
-  const sy = from.y + uy * RADIUS;
-  const ex = to.x - ux * (RADIUS + 6);
-  const ey = to.y - uy * (RADIUS + 6);
-  const mx = (sx + ex) / 2;
-  const my = (sy + ey) / 2;
-  return { sx, sy, ex, ey, mx, my };
+function nodeStyle(kind: NodeKind) {
+  if (kind === "tx") {
+    return {
+      bg: "bg-primary/10 border-primary/60",
+      text: "text-primary",
+      icon: <Coins className="h-4 w-4" />,
+    };
+  }
+  if (kind === "contract") {
+    return {
+      bg: "bg-warning/10 border-warning/60",
+      text: "text-warning",
+      icon: <FileCode className="h-4 w-4" />,
+    };
+  }
+  return {
+    bg: "bg-success/10 border-success/60",
+    text: "text-success",
+    icon: <Wallet className="h-4 w-4" />,
+  };
 }
 
-const TransactionGraph = ({ tx, title = "Transaction Flow Graph", nodes: nodesProp, edges: edgesProp }: Props) => {
-  const built = tx ? buildGraphFromTx(tx) : null;
-  const nodes = nodesProp ?? built?.nodes ?? [];
-  const edges = edgesProp ?? built?.edges ?? [];
+const TransactionGraph = ({ tx, title = "Address Flow" }: Props) => {
+  if (!tx) return null;
+  const { nodes, edges } = buildFlow(tx);
 
-  if (nodes.length === 0) return null;
+  // Compute layout: 3 columns; tallest column dictates SVG height
+  const rowsPerCol = [0, 0, 0];
+  nodes.forEach((n) => {
+    rowsPerCol[n.column] = Math.max(rowsPerCol[n.column], n.row + 1);
+  });
+  const maxRows = Math.max(...rowsPerCol, 1);
+
+  const colX = [0, NODE_W + COL_GAP, (NODE_W + COL_GAP) * 2];
+  const totalW = colX[2] + NODE_W;
+  const totalH = maxRows * NODE_H + (maxRows - 1) * ROW_GAP;
+
+  const positioned = nodes.map((n) => ({
+    ...n,
+    x: colX[n.column],
+    y: n.row * (NODE_H + ROW_GAP),
+  }));
+  const findNode = (id: string) => positioned.find((p) => p.id === id);
 
   return (
     <div className="glass-card p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h3 className="font-heading font-semibold text-foreground">{title}</h3>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <Legend color="hsl(var(--primary))" label="Transaction" />
-          <Legend color="hsl(var(--success))" label="Output" />
-          <Legend color="hsl(var(--warning))" label="Address" />
+          <Legend dotClass="bg-success" label="Address (EOA)" />
+          <Legend dotClass="bg-warning" label="Contract" />
+          <Legend dotClass="bg-primary" label="Transaction" />
         </div>
       </div>
 
       <div className="w-full overflow-x-auto">
-        <svg viewBox="0 0 1000 520" className="w-full h-auto min-w-[640px]" role="img" aria-label={title}>
-          <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--foreground))" />
-            </marker>
-          </defs>
+        <div
+          className="relative"
+          style={{ width: totalW, height: totalH, minWidth: "100%" }}
+        >
+          {/* SVG layer for edges */}
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            width={totalW}
+            height={totalH}
+            viewBox={`0 0 ${totalW} ${totalH}`}
+          >
+            <defs>
+              <marker id="flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--foreground))" />
+              </marker>
+              <marker id="flow-arrow-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--primary))" />
+              </marker>
+            </defs>
 
-          {/* Edges */}
-          {edges.map((e, i) => {
-            const from = nodes.find((n) => n.id === e.from);
-            const to = nodes.find((n) => n.id === e.to);
-            if (!from || !to) return null;
-            const { sx, sy, ex, ey, mx, my } = edgePath(from, to);
-            const dashed = e.label === "LOCKED";
-            return (
-              <motion.g
-                key={`edge-${i}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.1 + i * 0.08 }}
-              >
-                <line
-                  x1={sx}
-                  y1={sy}
-                  x2={ex}
-                  y2={ey}
-                  stroke="hsl(var(--foreground))"
-                  strokeWidth={2}
-                  strokeDasharray={dashed ? "6 5" : undefined}
-                  markerEnd="url(#arrow)"
-                />
-                <g transform={`translate(${mx}, ${my})`}>
-                  <rect x={-26} y={-10} width={52} height={18} rx={4} fill="hsl(var(--background))" stroke="hsl(var(--border))" />
-                  <text textAnchor="middle" dominantBaseline="middle" fontSize="11" fontWeight="600" fill="hsl(var(--foreground))">
-                    {e.label}
-                  </text>
-                </g>
-              </motion.g>
-            );
-          })}
+            {edges.map((e, i) => {
+              const a = findNode(e.from);
+              const b = findNode(e.to);
+              if (!a || !b) return null;
+              // anchor points: right edge of source, left edge of target
+              const sx = a.x + (a.column < b.column ? NODE_W : 0);
+              const sy = a.y + NODE_H / 2;
+              const ex = b.x + (b.column > a.column ? 0 : NODE_W);
+              const ey = b.y + NODE_H / 2;
+              const cx = (sx + ex) / 2;
+              const path = `M ${sx} ${sy} C ${cx} ${sy}, ${cx} ${ey}, ${ex} ${ey}`;
+              const stroke = e.highlight ? "hsl(var(--primary))" : "hsl(var(--foreground) / 0.55)";
+              const marker = e.highlight ? "url(#flow-arrow-primary)" : "url(#flow-arrow)";
+              const labelX = cx;
+              const labelY = (sy + ey) / 2 - 6;
+              return (
+                <motion.g key={`e-${i}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 + i * 0.05 }}>
+                  <path d={path} fill="none" stroke={stroke} strokeWidth={e.highlight ? 2.4 : 1.6} markerEnd={marker} />
+                  <g transform={`translate(${labelX}, ${labelY})`}>
+                    <rect
+                      x={-Math.max(28, e.label.length * 3.6)}
+                      y={-10}
+                      width={Math.max(56, e.label.length * 7.2)}
+                      height={20}
+                      rx={5}
+                      fill="hsl(var(--background))"
+                      stroke="hsl(var(--border))"
+                    />
+                    <text
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fontSize="11"
+                      fontWeight="600"
+                      fill="hsl(var(--foreground))"
+                    >
+                      {e.label}
+                    </text>
+                  </g>
+                </motion.g>
+              );
+            })}
+          </svg>
 
-          {/* Nodes */}
-          {nodes.map((n, i) => {
-            const c = COLORS[n.type];
+          {/* HTML node layer (better text rendering + tooltip) */}
+          {positioned.map((n, i) => {
+            const s = nodeStyle(n.kind);
             return (
-              <motion.g
+              <motion.div
                 key={n.id}
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.06 }}
-                transform={`translate(${n.x}, ${n.y})`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className={`absolute rounded-xl border-2 ${s.bg} backdrop-blur-sm shadow-sm`}
+                style={{ left: n.x, top: n.y, width: NODE_W, height: NODE_H }}
+                title={n.address}
               >
-                <circle r={RADIUS} fill={c.fill} stroke={c.stroke} strokeWidth={2.5} />
-                <text textAnchor="middle" dominantBaseline="middle" fontSize="14" fontWeight="700" fill={c.text}>
-                  {n.label}
-                </text>
-                {n.sublabel && (
-                  <text
-                    textAnchor="middle"
-                    y={RADIUS + 16}
-                    fontSize="11"
-                    fill="hsl(var(--muted-foreground))"
-                    fontFamily="ui-monospace, SFMono-Regular, monospace"
-                  >
-                    {n.sublabel}
-                  </text>
-                )}
-              </motion.g>
+                <div className="p-3 h-full flex flex-col justify-between">
+                  <div className={`flex items-center gap-2 text-xs font-semibold ${s.text}`}>
+                    {s.icon}
+                    <span className="truncate">{n.title}</span>
+                    {n.sub && (
+                      <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {n.sub}
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-mono text-xs text-foreground/90 truncate">{short(n.address)}</div>
+                </div>
+              </motion.div>
             );
           })}
-        </svg>
+        </div>
       </div>
 
-      <p className="text-xs text-muted-foreground mt-4">
-        Graph view inspired by UTXO-style flows: <span className="text-foreground">Transaction</span> nodes spawn{" "}
-        <span className="text-foreground">Outputs</span>, which can be <span className="text-foreground">LOCKED</span> to{" "}
-        <span className="text-foreground">Addresses</span> or fed <span className="text-foreground">IN</span> to subsequent transactions.
+      <p className="text-xs text-muted-foreground mt-4 flex items-center gap-2 flex-wrap">
+        <span className="inline-flex items-center gap-1">
+          Sender <ArrowRight className="h-3 w-3" /> Transaction <ArrowRight className="h-3 w-3" /> Receiver
+        </span>
+        <span>·</span>
+        <span>Each row below the main flow is a token transfer between two addresses.</span>
       </p>
     </div>
   );
 };
 
-const Legend = ({ color, label }: { color: string; label: string }) => (
+const Legend = ({ dotClass, label }: { dotClass: string; label: string }) => (
   <span className="inline-flex items-center gap-1.5">
-    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+    <span className={`inline-block w-2.5 h-2.5 rounded-full ${dotClass}`} />
     {label}
   </span>
 );
