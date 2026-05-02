@@ -3,7 +3,7 @@ import { Wallet, LogOut, ChevronRight } from "lucide-react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { mezoTestnet } from "@/lib/walletConfig";
+
 import { getConnectorLabel, shortenAddress } from "@/lib/walletUtils";
 
 interface WalletConnectControlProps {
