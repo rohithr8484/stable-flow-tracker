@@ -14,12 +14,18 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   mezoTestnet,
+  mezoMainnet,
+  SUPPORTED_CHAIN_IDS,
+  PRIMARY_CHAIN,
   MUSD_CONTRACT,
   TREASURY_ADDRESS,
   MUSD_PAYMENT_AMOUNT,
   MUSD_PAYMENT_DISPLAY,
   BTC_PAYMENT_DISPLAY,
 } from "@/lib/walletConfig";
+
+const isSupportedChain = (id?: number) =>
+  typeof id === "number" && (SUPPORTED_CHAIN_IDS as readonly number[]).includes(id);
 import { getConnectorLabel, shortenAddress } from "@/lib/walletUtils";
 
 const ERC20_ABI = [
