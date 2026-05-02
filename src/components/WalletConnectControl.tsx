@@ -3,7 +3,7 @@ import { Wallet, LogOut, ChevronRight } from "lucide-react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { mezoTestnet } from "@/lib/walletConfig";
+
 import { getConnectorLabel, shortenAddress } from "@/lib/walletUtils";
 
 interface WalletConnectControlProps {
@@ -29,7 +29,8 @@ export default function WalletConnectControl({
 
   const handleConnect = async (walletConnector: (typeof connectors)[number]) => {
     try {
-      await connectAsync({ connector: walletConnector, chainId: mezoTestnet.id });
+      // Don't force a chain — accept whichever supported Mezo network the wallet is on.
+      await connectAsync({ connector: walletConnector });
       setOpen(false);
       toast.success(`${getConnectorLabel(walletConnector)} connected`);
     } catch {

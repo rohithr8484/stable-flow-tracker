@@ -13,13 +13,18 @@ import { Wallet, Coins, Loader2, CheckCircle, Shield, ChevronRight } from "lucid
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  mezoTestnet,
+  mezoMainnet,
+  SUPPORTED_CHAIN_IDS,
+  PRIMARY_CHAIN,
   MUSD_CONTRACT,
   TREASURY_ADDRESS,
   MUSD_PAYMENT_AMOUNT,
   MUSD_PAYMENT_DISPLAY,
   BTC_PAYMENT_DISPLAY,
 } from "@/lib/walletConfig";
+
+const isSupportedChain = (id?: number) =>
+  typeof id === "number" && (SUPPORTED_CHAIN_IDS as readonly number[]).includes(id);
 import { getConnectorLabel, shortenAddress } from "@/lib/walletUtils";
 
 const ERC20_ABI = [
@@ -92,7 +97,13 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
 
   const startPayment = (method: PaymentMethod) => {
     setPendingAction(method);
-    setStage(method === "musd" ? "pick-wallet" : isConnected ? "switch-network" : "pick-wallet");
+    setStage(
+      !isConnected
+        ? "pick-wallet"
+        : !isSupportedChain(chain?.id)
+        ? "switch-network"
+        : "confirm-payment"
+    );
     paymentRequestedRef.current = false;
     switchingRequestedRef.current = false;
   };
@@ -119,7 +130,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
       return;
     }
 
-    if (chain?.id !== mezoTestnet.id) {
+    if (!isSupportedChain(chain?.id)) {
       setStage("switch-network");
       return;
     }
@@ -130,17 +141,22 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
   }, [pendingAction, isConnected, chain?.id]);
 
   useEffect(() => {
-    if (!pendingAction || !isConnected || chain?.id === mezoTestnet.id || switchingRequestedRef.current) return;
+    if (!pendingAction || !isConnected || isSupportedChain(chain?.id) || switchingRequestedRef.current) return;
 
     switchingRequestedRef.current = true;
     setStage("switch-network");
 
-    void switchChainAsync({ chainId: mezoTestnet.id }).catch(() => {
-      resetFlow();
-      toast.error("Please approve the switch to Mezo Matsnet.");
-    }).finally(() => {
-      switchingRequestedRef.current = false;
-    });
+    // Try testnet first, fall back to mainnet — whichever the wallet already has configured.
+    void switchChainAsync({ chainId: PRIMARY_CHAIN.id })
+      .catch(() => switchChainAsync({ chainId: mezoMainnet.id }))
+      .catch(() => {
+        // Don't reset the entire flow — just inform the user and let them retry / approve.
+        toast.error("Please approve the switch to Mezo Matsnet or Mezo in your wallet.");
+        setStage("switch-network");
+      })
+      .finally(() => {
+        switchingRequestedRef.current = false;
+      });
   }, [pendingAction, isConnected, chain?.id, switchChainAsync]);
 
   useEffect(() => {
