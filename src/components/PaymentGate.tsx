@@ -98,7 +98,13 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
 
   const startPayment = (method: PaymentMethod) => {
     setPendingAction(method);
-    setStage(method === "musd" ? "pick-wallet" : isConnected ? "switch-network" : "pick-wallet");
+    setStage(
+      !isConnected
+        ? "pick-wallet"
+        : !isSupportedChain(chain?.id)
+        ? "switch-network"
+        : "confirm-payment"
+    );
     paymentRequestedRef.current = false;
     switchingRequestedRef.current = false;
   };
