@@ -125,7 +125,7 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
       return;
     }
 
-    if (chain?.id !== mezoTestnet.id) {
+    if (!isSupportedChain(chain?.id)) {
       setStage("switch-network");
       return;
     }
@@ -136,17 +136,22 @@ export default function PaymentGate({ onPaymentComplete, serviceName }: PaymentG
   }, [pendingAction, isConnected, chain?.id]);
 
   useEffect(() => {
-    if (!pendingAction || !isConnected || chain?.id === mezoTestnet.id || switchingRequestedRef.current) return;
+    if (!pendingAction || !isConnected || isSupportedChain(chain?.id) || switchingRequestedRef.current) return;
 
     switchingRequestedRef.current = true;
     setStage("switch-network");
 
-    void switchChainAsync({ chainId: mezoTestnet.id }).catch(() => {
-      resetFlow();
-      toast.error("Please approve the switch to Mezo Matsnet.");
-    }).finally(() => {
-      switchingRequestedRef.current = false;
-    });
+    // Try testnet first, fall back to mainnet — whichever the wallet already has configured.
+    void switchChainAsync({ chainId: PRIMARY_CHAIN.id })
+      .catch(() => switchChainAsync({ chainId: mezoMainnet.id }))
+      .catch(() => {
+        // Don't reset the entire flow — just inform the user and let them retry / approve.
+        toast.error("Please approve the switch to Mezo Matsnet or Mezo in your wallet.");
+        setStage("switch-network");
+      })
+      .finally(() => {
+        switchingRequestedRef.current = false;
+      });
   }, [pendingAction, isConnected, chain?.id, switchChainAsync]);
 
   useEffect(() => {
