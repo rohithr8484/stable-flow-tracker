@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import TransactionFlowDiagram from "@/components/TransactionFlowDiagram";
 import TransactionGraph from "@/components/TransactionGraph";
+import EntityGraph from "@/components/EntityGraph";
 import RiskGauge from "@/components/RiskGauge";
 import PaymentGate from "@/components/PaymentGate";
 import { fetchTransaction, formatTokenAmount, computeRiskScore, computeSubRisks, type TxData } from "@/lib/mezoApi";
@@ -178,7 +179,10 @@ const Investigation = () => {
                 </TabsList>
 
                 <TabsContent value="flow">
-                  <div className="mb-6">{txData && <TransactionGraph tx={txData} title="Investigation Transaction Graph" />}</div>
+                  <div className="mb-6 space-y-6">
+                    {txData && <TransactionGraph tx={txData} title="Investigation Transaction Graph" />}
+                    {txData && <EntityGraph tx={txData} />}
+                  </div>
                   <div className="grid lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2">{flow && <TransactionFlowDiagram nodes={flow.nodes} edges={flow.edges} />}</div>
                     <div className="space-y-6">

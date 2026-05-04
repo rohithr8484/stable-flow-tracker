@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import PaymentGate from "@/components/PaymentGate";
 import TransactionGraph from "@/components/TransactionGraph";
+import TransactionAnalytics from "@/components/TransactionAnalytics";
 import { fetchTransaction, formatTokenAmount, computeRiskScore, type TxData } from "@/lib/mezoApi";
 import { toast } from "sonner";
 
@@ -163,6 +164,7 @@ const AMLScreening = () => {
               </div>
 
               <TransactionGraph tx={result.tx} title="AML Transaction Flow Graph" />
+              <TransactionAnalytics tx={result.tx} />
 
               <div className="glass-card p-5">
                 <h3 className="font-heading font-semibold text-foreground mb-3">Transaction Details</h3>
