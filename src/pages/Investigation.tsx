@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, MessageSquare, Lightbulb, AlertTriangle, CheckCircle, Clock, ArrowRight, Loader2, Copy, ExternalLink } from "lucide-react";
+import { Search, MessageSquare, AlertTriangle, CheckCircle, Clock, Loader2, Copy, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,6 +8,7 @@ import Navbar from "@/components/Navbar";
 import TransactionFlowDiagram from "@/components/TransactionFlowDiagram";
 import TransactionGraph from "@/components/TransactionGraph";
 import EntityGraph from "@/components/EntityGraph";
+import InvestigationCaseAnalysis from "@/components/InvestigationCaseAnalysis";
 import RiskGauge from "@/components/RiskGauge";
 import PaymentGate from "@/components/PaymentGate";
 import { fetchTransaction, formatTokenAmount, computeRiskScore, computeSubRisks, type TxData } from "@/lib/mezoApi";
@@ -25,6 +26,7 @@ function buildFlowFromTx(tx: TxData) {
   const edges: { from: string; to: string }[] = [];
   const seenAddresses = new Map<string, string>();
   let nodeId = 1;
+
   const getNodeId = (hash: string, name: string | null, type: "source" | "intermediary" | "destination") => {
     if (seenAddresses.has(hash)) return seenAddresses.get(hash)!;
     const id = String(nodeId++);
@@ -32,35 +34,63 @@ function buildFlowFromTx(tx: TxData) {
     nodes.push({ id, label: name || `${hash.slice(0, 10)}...${hash.slice(-6)}`, amount: "", currency: "", type });
     return id;
   };
+
   const fromId = getNodeId(tx.from.hash, tx.from.name, "source");
   const contractId = tx.to.is_contract
     ? getNodeId(tx.to.hash, tx.to.name || tx.to.implementations?.[0]?.name || "Contract", "intermediary")
     : getNodeId(tx.to.hash, tx.to.name, "destination");
+
   edges.push({ from: fromId, to: contractId });
+
   tx.token_transfers.forEach((t) => {
     const amt = formatTokenAmount(t.total.value, t.total.decimals);
     const srcId = getNodeId(t.from.hash, t.from.name, "source");
     const dstId = getNodeId(t.to.hash, t.to.name, "destination");
-    const srcNode = nodes.find(n => n.id === srcId);
-    if (srcNode && !srcNode.amount) { srcNode.amount = amt; srcNode.currency = t.token.symbol; }
-    const dstNode = nodes.find(n => n.id === dstId);
-    if (dstNode && !dstNode.amount) { dstNode.amount = amt; dstNode.currency = t.token.symbol; }
-    if (!edges.some(e => e.from === srcId && e.to === dstId)) edges.push({ from: srcId, to: dstId });
+    const srcNode = nodes.find((n) => n.id === srcId);
+    const dstNode = nodes.find((n) => n.id === dstId);
+
+    if (srcNode && !srcNode.amount) {
+      srcNode.amount = amt;
+      srcNode.currency = t.token.symbol;
+    }
+    if (dstNode && !dstNode.amount) {
+      dstNode.amount = amt;
+      dstNode.currency = t.token.symbol;
+    }
+    if (!edges.some((e) => e.from === srcId && e.to === dstId)) {
+      edges.push({ from: srcId, to: dstId });
+    }
   });
+
   return { nodes, edges };
 }
 
 function buildFindings(tx: TxData) {
   const risk = computeRiskScore(tx);
   const findings: { severity: string; text: string }[] = [];
-  if (tx.to.is_contract) findings.push({ severity: risk > 50 ? "high" : "medium", text: `Interaction with smart contract: ${tx.to.name || tx.to.implementations?.[0]?.name || tx.to.hash.slice(0, 16) + "..."}` });
-  if (tx.token_transfers.some(t => t.type === "token_minting")) findings.push({ severity: "high", text: "Token minting detected — new tokens created in this transaction" });
-  if (tx.token_transfers.length > 2) findings.push({ severity: "medium", text: `Multiple token transfers (${tx.token_transfers.length}) indicate complex routing` });
-  if (parseInt(tx.gas_used) > 200000) findings.push({ severity: "medium", text: `High gas consumption (${parseInt(tx.gas_used).toLocaleString()}) suggests complex contract execution` });
+
+  if (tx.to.is_contract) {
+    findings.push({ severity: risk > 50 ? "high" : "medium", text: `Interaction with smart contract: ${tx.to.name || tx.to.implementations?.[0]?.name || tx.to.hash.slice(0, 16) + "..."}` });
+  }
+  if (tx.token_transfers.some((t) => t.type === "token_minting")) {
+    findings.push({ severity: "high", text: "Token minting detected — new tokens created in this transaction" });
+  }
+  if (tx.token_transfers.length > 2) {
+    findings.push({ severity: "medium", text: `Multiple token transfers (${tx.token_transfers.length}) indicate complex routing` });
+  }
+  if (parseInt(tx.gas_used) > 200000) {
+    findings.push({ severity: "medium", text: `High gas consumption (${parseInt(tx.gas_used).toLocaleString()}) suggests complex contract execution` });
+  }
+
   const uniqueAddresses = new Set<string>();
-  tx.token_transfers.forEach(t => { uniqueAddresses.add(t.from.hash); uniqueAddresses.add(t.to.hash); });
+  tx.token_transfers.forEach((t) => {
+    uniqueAddresses.add(t.from.hash);
+    uniqueAddresses.add(t.to.hash);
+  });
+
   findings.push({ severity: "low", text: `${uniqueAddresses.size} unique entities identified in transaction flow` });
   findings.push({ severity: "info", text: `Block #${tx.block_number.toLocaleString()} · ${tx.confirmations.toLocaleString()} confirmations · ${new Date(tx.timestamp).toLocaleString()}` });
+
   return findings;
 }
 
@@ -180,8 +210,8 @@ const Investigation = () => {
 
                 <TabsContent value="flow">
                   <div className="mb-6 space-y-6">
-                    {txData && <TransactionGraph tx={txData} title="Investigation Transaction Graph" />}
-                    {txData && <EntityGraph tx={txData} />}
+                    <TransactionGraph tx={txData} title="Investigation Transaction Graph" />
+                    <EntityGraph tx={txData} />
                   </div>
                   <div className="grid lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2">{flow && <TransactionFlowDiagram nodes={flow.nodes} edges={flow.edges} />}</div>
@@ -236,7 +266,7 @@ const Investigation = () => {
                           { label: "Incoming Risk", value: subRisks.incoming },
                           { label: "Outgoing Risk", value: subRisks.outgoing },
                           { label: "Indirect Exposure", value: subRisks.indirect },
-                        ].map(r => (
+                        ].map((r) => (
                           <div key={r.label}>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="text-muted-foreground">{r.label}</span>
@@ -253,25 +283,28 @@ const Investigation = () => {
                 </TabsContent>
 
                 <TabsContent value="trace">
-                  <div className="glass-card p-6">
-                    <h3 className="font-heading font-semibold text-foreground mb-4">Connected Entities</h3>
-                    <div className="space-y-3">
-                      {flow?.nodes.map((node, i) => (
-                        <motion.div key={node.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border/50">
-                          <div className="flex items-center gap-3">
-                            <span className={`w-2.5 h-2.5 rounded-full ${node.type === "source" ? "bg-primary" : node.type === "destination" ? "bg-accent" : "bg-warning"}`} />
-                            <div>
-                              <div className="text-sm font-medium text-foreground font-mono">{node.label}</div>
-                              <div className="text-xs text-muted-foreground capitalize">{node.type}</div>
+                  <div className="space-y-6">
+                    <InvestigationCaseAnalysis tx={txData} />
+                    <div className="glass-card p-6">
+                      <h3 className="font-heading font-semibold text-foreground mb-4">Connected Entities</h3>
+                      <div className="space-y-3">
+                        {flow?.nodes.map((node, i) => (
+                          <motion.div key={node.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border/50">
+                            <div className="flex items-center gap-3">
+                              <span className={`w-2.5 h-2.5 rounded-full ${node.type === "source" ? "bg-primary" : node.type === "destination" ? "bg-accent" : "bg-warning"}`} />
+                              <div>
+                                <div className="text-sm font-medium text-foreground font-mono">{node.label}</div>
+                                <div className="text-xs text-muted-foreground capitalize">{node.type}</div>
+                              </div>
                             </div>
-                          </div>
-                          {node.amount && (
-                            <div className="text-right">
-                              <div className="text-sm font-bold text-foreground">{node.amount} {node.currency}</div>
-                            </div>
-                          )}
-                        </motion.div>
-                      ))}
+                            {node.amount && (
+                              <div className="text-right">
+                                <div className="text-sm font-bold text-foreground">{node.amount} {node.currency}</div>
+                              </div>
+                            )}
+                          </motion.div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
