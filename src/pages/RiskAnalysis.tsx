@@ -7,6 +7,7 @@ import RiskGauge from "@/components/RiskGauge";
 import TransferTable from "@/components/TransferTable";
 import PaymentGate from "@/components/PaymentGate";
 import TransactionGraph from "@/components/TransactionGraph";
+import WalletConnectionsBreakdown from "@/components/WalletConnectionsBreakdown";
 import { fetchTransaction, formatTokenAmount, computeRiskScore, computeSubRisks, type TxData } from "@/lib/mezoApi";
 import { toast } from "sonner";
 
@@ -185,6 +186,7 @@ const RiskAnalysis = () => {
               )}
 
               {primaryTx && <TransactionGraph tx={primaryTx} title="Risk Analysis Transaction Graph" />}
+              {primaryTx && <WalletConnectionsBreakdown tx={primaryTx} riskScore={riskScore} />}
 
               {primaryTx && primaryTx.token_transfers.length > 0 && (
                 <div className="glass-card p-5">
