@@ -213,23 +213,51 @@ Deno.serve(async (req) => {
         catch { parsedArgs = {}; }
 
         let toolResult = "";
-        const mapping = toolMap.get(fname);
-        if (!mapping) {
-          toolResult = JSON.stringify({ error: `Unknown tool: ${fname}` });
-        } else {
+        if (fname === "mezo_testnet_get_balance") {
           try {
-            const r = await mapping.client.callTool(mapping.original, parsedArgs);
-            // MCP returns { content: [{type:'text', text:'...'}], ... }
-            if (r?.content && Array.isArray(r.content)) {
-              toolResult = r.content
-                .map((c: any) => (typeof c?.text === "string" ? c.text : JSON.stringify(c)))
-                .join("\n");
+            const addr = String(parsedArgs.address || "");
+            const r = await fetch(MEZO_TESTNET_RPC, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [addr, "latest"] }),
+            });
+            const j = await r.json();
+            if (j.error) {
+              toolResult = JSON.stringify({ error: j.error.message });
             } else {
-              toolResult = JSON.stringify(r);
+              const hex = j.result as string;
+              const wei = BigInt(hex);
+              const btc = Number(wei) / 1e18;
+              toolResult = JSON.stringify({
+                chain: "Mezo Matsnet Testnet",
+                address: addr,
+                balanceHex: hex,
+                balanceWei: wei.toString(),
+                balanceBTC: btc,
+                formatted: `${btc.toFixed(8)} BTC`,
+              });
             }
-            if (toolResult.length > 8000) toolResult = toolResult.slice(0, 8000) + "\n…[truncated]";
           } catch (e) {
             toolResult = JSON.stringify({ error: e instanceof Error ? e.message : String(e) });
+          }
+        } else {
+          const mapping = toolMap.get(fname);
+          if (!mapping) {
+            toolResult = JSON.stringify({ error: `Unknown tool: ${fname}` });
+          } else {
+            try {
+              const r = await mapping.client.callTool(mapping.original, parsedArgs);
+              if (r?.content && Array.isArray(r.content)) {
+                toolResult = r.content
+                  .map((c: any) => (typeof c?.text === "string" ? c.text : JSON.stringify(c)))
+                  .join("\n");
+              } else {
+                toolResult = JSON.stringify(r);
+              }
+              if (toolResult.length > 8000) toolResult = toolResult.slice(0, 8000) + "\n…[truncated]";
+            } catch (e) {
+              toolResult = JSON.stringify({ error: e instanceof Error ? e.message : String(e) });
+            }
           }
         }
 
