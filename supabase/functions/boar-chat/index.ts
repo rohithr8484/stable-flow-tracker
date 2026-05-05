@@ -140,7 +140,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Loaded ${tools.length} MCP tools from Boar`);
+    // Inject custom Mezo Matsnet TESTNET balance tool (Boar only covers Mezo mainnet)
+    const MEZO_TESTNET_RPC = "https://rpc.test.mezo.org";
+    tools.push({
+      type: "function",
+      function: {
+        name: "mezo_testnet_get_balance",
+        description: "Get native BTC balance for an address on Mezo Matsnet TESTNET (rpc.test.mezo.org). Use this whenever Mezo testnet/matsnet is requested or when the mainnet balance is 0. Returns balance in wei (hex + decimal) and BTC.",
+        parameters: {
+          type: "object",
+          properties: { address: { type: "string", pattern: "^0x.*" } },
+          required: ["address"],
+        },
+      },
+    });
+
+    console.log(`Loaded ${tools.length} tools (Boar MCP + mezo_testnet_get_balance)`);
 
     const convo: any[] = [
       { role: "system", content: SYSTEM_PROMPT },
