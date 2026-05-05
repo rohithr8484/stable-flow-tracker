@@ -1,13 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { MessageCircle, X, Send, Loader2, ShieldAlert, Target, Sparkles, Wallet } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, ShieldAlert, Target, Sparkles, Wallet, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Mode = "risk" | "coaching" | "yield" | "portfolio";
+type Mode = "boar" | "risk" | "coaching" | "yield" | "portfolio";
 type Msg = { role: "user" | "assistant"; content: string };
 
 const MODES: { id: Mode; label: string; icon: React.ComponentType<{ className?: string }>; greet: string; prompts: string[] }[] = [
+  {
+    id: "boar",
+    label: "Boar Chain",
+    icon: Link2,
+    greet: "🐗 I'm the Boar Blockchain Agent. I can resolve ENS, fetch balances, decode tx reverts, list ERC-20 holdings, inspect Bitcoin UTXOs, and more — powered by Boar MCP (basic + advanced).",
+    prompts: [
+      "What is vitalik.eth's ETH balance?",
+      "Show UTXOs for 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+      "What ERC-20 tokens does vitalik.eth hold?",
+      "Decode revert for tx 0x... (paste hash)",
+    ],
+  },
   {
     id: "risk",
     label: "Risk & Alerts",
@@ -40,8 +52,8 @@ const MODES: { id: Mode; label: string; icon: React.ComponentType<{ className?: 
 
 const ChatBot = () => {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<Mode>("risk");
-  const [messages, setMessages] = useState<Record<Mode, Msg[]>>({ risk: [], coaching: [], yield: [], portfolio: [] });
+  const [mode, setMode] = useState<Mode>("boar");
+  const [messages, setMessages] = useState<Record<Mode, Msg[]>>({ boar: [], risk: [], coaching: [], yield: [], portfolio: [] });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -81,6 +93,29 @@ const ChatBot = () => {
     };
 
     try {
+      if (mode === "boar") {
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/boar-chat`;
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ messages: next }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          if (resp.status === 429) upsert("⚠️ Rate limit reached. Please try again in a moment.");
+          else if (resp.status === 402) upsert("⚠️ AI credits exhausted. Add funds in workspace settings.");
+          else upsert(`⚠️ ${data?.error || "Something went wrong."}`);
+          setLoading(false);
+          return;
+        }
+        upsert(data.content || "(no response)");
+        setLoading(false);
+        return;
+      }
+
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
       const resp = await fetch(url, {
         method: "POST",
