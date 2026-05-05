@@ -52,8 +52,8 @@ const MODES: { id: Mode; label: string; icon: React.ComponentType<{ className?: 
 
 const ChatBot = () => {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<Mode>("risk");
-  const [messages, setMessages] = useState<Record<Mode, Msg[]>>({ risk: [], coaching: [], yield: [], portfolio: [] });
+  const [mode, setMode] = useState<Mode>("boar");
+  const [messages, setMessages] = useState<Record<Mode, Msg[]>>({ boar: [], risk: [], coaching: [], yield: [], portfolio: [] });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
