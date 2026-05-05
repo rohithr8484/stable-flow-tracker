@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { MessageCircle, X, Send, Loader2, ShieldAlert, Target, Sparkles, Wallet } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, ShieldAlert, Target, Sparkles, Wallet, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Mode = "risk" | "coaching" | "yield" | "portfolio";
+type Mode = "boar" | "risk" | "coaching" | "yield" | "portfolio";
 type Msg = { role: "user" | "assistant"; content: string };
 
 const MODES: { id: Mode; label: string; icon: React.ComponentType<{ className?: string }>; greet: string; prompts: string[] }[] = [
