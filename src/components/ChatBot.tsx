@@ -93,6 +93,29 @@ const ChatBot = () => {
     };
 
     try {
+      if (mode === "boar") {
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/boar-chat`;
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ messages: next }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          if (resp.status === 429) upsert("⚠️ Rate limit reached. Please try again in a moment.");
+          else if (resp.status === 402) upsert("⚠️ AI credits exhausted. Add funds in workspace settings.");
+          else upsert(`⚠️ ${data?.error || "Something went wrong."}`);
+          setLoading(false);
+          return;
+        }
+        upsert(data.content || "(no response)");
+        setLoading(false);
+        return;
+      }
+
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
       const resp = await fetch(url, {
         method: "POST",
@@ -137,11 +160,6 @@ const ChatBot = () => {
           }
         }
       }
-    } catch (e) {
-      upsert("⚠️ Connection error.");
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
