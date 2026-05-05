@@ -12,14 +12,16 @@ const MCP_ENDPOINTS = [
   { name: "advanced", url: "https://mcp.boar.network/advanced" },
 ];
 
-const SYSTEM_PROMPT = `You are the Boar Blockchain Agent. You answer on-chain questions by calling MCP tools from the Boar blockchain MCP servers (basic + advanced).
+const SYSTEM_PROMPT = `You are the Boar Blockchain Agent. You answer on-chain questions by calling MCP tools.
 
-Guidelines:
-- Always prefer calling a tool over guessing. If unsure which tool, pick the closest match.
-- Resolve ENS names with the appropriate tool before calling balance/token tools.
-- For Bitcoin addresses, use the Bitcoin tools (UTXO etc.) from the basic server.
-- For failed EVM tx analysis, fetch the receipt then decode revert reason via the advanced tools.
-- Format final answers in concise markdown with code blocks for hashes/addresses.`;
+Critical rules:
+- NEVER ask the user which chain to query. When given an EVM address, ALWAYS call eth_get_balance, mezo_get_balance, AND mezo_testnet_get_balance in parallel and report all three.
+- Mezo's native asset is BTC (not ETH). Always label Mezo balances as "BTC".
+- Boar's mezo_* tools target Mezo MAINNET. The custom tool mezo_testnet_get_balance targets Mezo Matsnet TESTNET (rpc.test.mezo.org) — use it whenever the user mentions testnet, matsnet, or when mainnet returns 0.
+- Resolve ENS names before calling balance/token tools.
+- For Bitcoin addresses use the Bitcoin tools.
+- For failed EVM tx, fetch the receipt then decode revert via advanced tools.
+- Format answers as concise markdown. Show full address in a code block. List each chain on its own line with the formatted amount.`;
 
 type JsonRpcResp = { jsonrpc: "2.0"; id: number | string; result?: any; error?: { code: number; message: string } };
 
@@ -138,7 +140,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Loaded ${tools.length} MCP tools from Boar`);
+    // Inject custom Mezo Matsnet TESTNET balance tool (Boar only covers Mezo mainnet)
+    const MEZO_TESTNET_RPC = "https://rpc.test.mezo.org";
+    tools.push({
+      type: "function",
+      function: {
+        name: "mezo_testnet_get_balance",
+        description: "Get native BTC balance for an address on Mezo Matsnet TESTNET (rpc.test.mezo.org). Use this whenever Mezo testnet/matsnet is requested or when the mainnet balance is 0. Returns balance in wei (hex + decimal) and BTC.",
+        parameters: {
+          type: "object",
+          properties: { address: { type: "string", pattern: "^0x.*" } },
+          required: ["address"],
+        },
+      },
+    });
+
+    console.log(`Loaded ${tools.length} tools (Boar MCP + mezo_testnet_get_balance)`);
 
     const convo: any[] = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -196,23 +213,51 @@ Deno.serve(async (req) => {
         catch { parsedArgs = {}; }
 
         let toolResult = "";
-        const mapping = toolMap.get(fname);
-        if (!mapping) {
-          toolResult = JSON.stringify({ error: `Unknown tool: ${fname}` });
-        } else {
+        if (fname === "mezo_testnet_get_balance") {
           try {
-            const r = await mapping.client.callTool(mapping.original, parsedArgs);
-            // MCP returns { content: [{type:'text', text:'...'}], ... }
-            if (r?.content && Array.isArray(r.content)) {
-              toolResult = r.content
-                .map((c: any) => (typeof c?.text === "string" ? c.text : JSON.stringify(c)))
-                .join("\n");
+            const addr = String(parsedArgs.address || "");
+            const r = await fetch(MEZO_TESTNET_RPC, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [addr, "latest"] }),
+            });
+            const j = await r.json();
+            if (j.error) {
+              toolResult = JSON.stringify({ error: j.error.message });
             } else {
-              toolResult = JSON.stringify(r);
+              const hex = j.result as string;
+              const wei = BigInt(hex);
+              const btc = Number(wei) / 1e18;
+              toolResult = JSON.stringify({
+                chain: "Mezo Matsnet Testnet",
+                address: addr,
+                balanceHex: hex,
+                balanceWei: wei.toString(),
+                balanceBTC: btc,
+                formatted: `${btc.toFixed(8)} BTC`,
+              });
             }
-            if (toolResult.length > 8000) toolResult = toolResult.slice(0, 8000) + "\n…[truncated]";
           } catch (e) {
             toolResult = JSON.stringify({ error: e instanceof Error ? e.message : String(e) });
+          }
+        } else {
+          const mapping = toolMap.get(fname);
+          if (!mapping) {
+            toolResult = JSON.stringify({ error: `Unknown tool: ${fname}` });
+          } else {
+            try {
+              const r = await mapping.client.callTool(mapping.original, parsedArgs);
+              if (r?.content && Array.isArray(r.content)) {
+                toolResult = r.content
+                  .map((c: any) => (typeof c?.text === "string" ? c.text : JSON.stringify(c)))
+                  .join("\n");
+              } else {
+                toolResult = JSON.stringify(r);
+              }
+              if (toolResult.length > 8000) toolResult = toolResult.slice(0, 8000) + "\n…[truncated]";
+            } catch (e) {
+              toolResult = JSON.stringify({ error: e instanceof Error ? e.message : String(e) });
+            }
           }
         }
 
