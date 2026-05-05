@@ -160,6 +160,11 @@ const ChatBot = () => {
           }
         }
       }
+    } catch (e) {
+      upsert("⚠️ Connection error.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
