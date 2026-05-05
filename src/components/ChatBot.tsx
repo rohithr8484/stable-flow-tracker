@@ -9,6 +9,18 @@ type Msg = { role: "user" | "assistant"; content: string };
 
 const MODES: { id: Mode; label: string; icon: React.ComponentType<{ className?: string }>; greet: string; prompts: string[] }[] = [
   {
+    id: "boar",
+    label: "Boar Chain",
+    icon: Link2,
+    greet: "🐗 I'm the Boar Blockchain Agent. I can resolve ENS, fetch balances, decode tx reverts, list ERC-20 holdings, inspect Bitcoin UTXOs, and more — powered by Boar MCP (basic + advanced).",
+    prompts: [
+      "What is vitalik.eth's ETH balance?",
+      "Show UTXOs for 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+      "What ERC-20 tokens does vitalik.eth hold?",
+      "Decode revert for tx 0x... (paste hash)",
+    ],
+  },
+  {
     id: "risk",
     label: "Risk & Alerts",
     icon: ShieldAlert,
