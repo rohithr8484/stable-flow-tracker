@@ -9,6 +9,7 @@ import TransactionFlowDiagram from "@/components/TransactionFlowDiagram";
 import TransactionGraph from "@/components/TransactionGraph";
 import EntityGraph from "@/components/EntityGraph";
 import InvestigationCaseAnalysis from "@/components/InvestigationCaseAnalysis";
+import ForensicsSummary from "@/components/ForensicsSummary";
 import RiskGauge from "@/components/RiskGauge";
 import PaymentGate from "@/components/PaymentGate";
 import { fetchTransaction, formatTokenAmount, computeRiskScore, computeSubRisks, type TxData } from "@/lib/mezoApi";
@@ -144,7 +145,8 @@ const Investigation = () => {
       <Navbar />
       <div className="pt-24 pb-16 px-4">
         <div className="container mx-auto max-w-6xl">
-          <h1 className="font-heading text-3xl font-bold text-foreground mb-8">Investigation</h1>
+          <h1 className="font-heading text-3xl font-bold text-foreground mb-2">Blockchain Forensics</h1>
+          <p className="text-sm text-muted-foreground mb-8">On-chain investigation with automated LLM-powered graph summaries</p>
 
           {!pendingQuery ? (
             <>
@@ -156,12 +158,12 @@ const Investigation = () => {
               </div>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-lg mx-auto text-center py-16">
                 <div className="p-4 rounded-2xl bg-primary/10 w-fit mx-auto mb-4"><MessageSquare className="h-8 w-8 text-primary" /></div>
-                <h2 className="font-heading text-xl font-semibold text-foreground mb-2">Investigative Assistant</h2>
-                <p className="text-sm text-muted-foreground mb-6">Enter a BTC transaction hash, MUSD hash, or smart contract hash to trace transaction flows, identify connected entities, and assess risk.</p>
+                <h2 className="font-heading text-xl font-semibold text-foreground mb-2">Blockchain Forensics</h2>
+                <p className="text-sm text-muted-foreground mb-6">Enter a BTC transaction hash, MUSD hash, or smart contract hash to trace flows, map connected entities, and receive an AI-written forensic narrative.</p>
               </motion.div>
             </>
           ) : !paid ? (
-            <PaymentGate onPaymentComplete={handlePaymentComplete} serviceName="Investigation" />
+            <PaymentGate onPaymentComplete={handlePaymentComplete} serviceName="Blockchain Forensics" />
           ) : loading ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
               <Loader2 className="h-10 w-10 text-primary animate-spin mx-auto mb-4" />
@@ -210,8 +212,10 @@ const Investigation = () => {
 
                 <TabsContent value="flow">
                   <div className="mb-6 space-y-6">
-                    <TransactionGraph tx={txData} title="Investigation Transaction Graph" />
+                    <TransactionGraph tx={txData} title="Forensic Transaction Graph" />
+                    {flow && <ForensicsSummary tx={txData} graph={flow} title="AI Summary — Transaction Graph" />}
                     <EntityGraph tx={txData} />
+                    {flow && <ForensicsSummary tx={txData} graph={flow} title="AI Summary — Entity Map" />}
                   </div>
                   <div className="grid lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2">{flow && <TransactionFlowDiagram nodes={flow.nodes} edges={flow.edges} />}</div>

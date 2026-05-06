@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import RiskAnalysis from "./pages/RiskAnalysis.tsx";
-import Investigation from "./pages/Investigation.tsx";
+import BlockchainForensics from "./pages/BlockchainForensics.tsx";
 import Compliance from "./pages/Compliance.tsx";
 import AMLScreening from "./pages/AMLScreening.tsx";
 import ContractRiskAnalyser from "./pages/ContractRiskAnalyser.tsx";
@@ -19,7 +19,8 @@ const App = () => (
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/risk-analysis" element={<RiskAnalysis />} />
-        <Route path="/investigation" element={<Investigation />} />
+        <Route path="/investigation" element={<BlockchainForensics />} />
+        <Route path="/blockchain-forensics" element={<BlockchainForensics />} />
         <Route path="/compliance" element={<Compliance />} />
         <Route path="/aml-screening" element={<AMLScreening />} />
         <Route path="/contract-risk" element={<ContractRiskAnalyser />} />
