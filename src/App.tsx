@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import RiskAnalysis from "./pages/RiskAnalysis.tsx";
-import Investigation from "./pages/Investigation.tsx";
+import BlockchainForensics from "./pages/BlockchainForensics.tsx";
 import Compliance from "./pages/Compliance.tsx";
 import AMLScreening from "./pages/AMLScreening.tsx";
 import ContractRiskAnalyser from "./pages/ContractRiskAnalyser.tsx";
