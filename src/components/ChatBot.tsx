@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { MessageCircle, X, Send, Loader2, ShieldAlert, Target, Sparkles, Wallet, Link2 } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, ShieldAlert, Sparkles, Wallet, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Mode = "boar" | "risk" | "coaching" | "yield" | "portfolio";
+type Mode = "boar" | "risk" | "treasury";
 type Msg = { role: "user" | "assistant"; content: string };
 
 const MODES: { id: Mode; label: string; icon: React.ComponentType<{ className?: string }>; greet: string; prompts: string[] }[] = [
@@ -28,25 +28,16 @@ const MODES: { id: Mode; label: string; icon: React.ComponentType<{ className?: 
     prompts: ["Scan my connected wallet", "Latest BTC market risks", "Audit a contract address", "Show critical alerts"],
   },
   {
-    id: "coaching",
-    label: "MUSD Coach",
-    icon: Target,
-    greet: "🎯 I'm your MUSD Goal Coach. Tell me your savings, borrow, or repayment goal and I'll build a plan.",
-    prompts: ["Save 1,000 MUSD in 90 days", "Plan to repay my MUSD loan", "Build a weekly DCA plan", "Set a yield goal"],
-  },
-  {
-    id: "yield",
-    label: "Yield Search",
-    icon: Sparkles,
-    greet: "✨ I find DeFi yield across BTC, MUSD & cbBTC. What's your risk appetite?",
-    prompts: ["Best low-risk MUSD yield", "Top BTC staking APYs", "Compare cbBTC pools", "Stable yields above 8%"],
-  },
-  {
-    id: "portfolio",
-    label: "Portfolio Manager",
+    id: "treasury",
+    label: "Treasury Advisor",
     icon: Wallet,
-    greet: "💼 I'm your Portfolio Manager. Share your holdings or connect a wallet and I'll analyze allocation, PnL, and hedges.",
-    prompts: ["Analyze my allocation", "Suggest a rebalance", "Estimate 30d PnL", "Hedge BTC downside"],
+    greet: "💼 I'm your unified Treasury Advisor — combining MUSD goal coaching, DeFi yield search, and portfolio management. Tell me your goal, holdings, or risk appetite and I'll build a plan, find yields, and analyze allocations.",
+    prompts: [
+      "Save 1,000 MUSD in 90 days",
+      "Best low-risk MUSD yield right now",
+      "Analyze my allocation & suggest a rebalance",
+      "Build a 90-day plan: DCA + yield + hedge",
+    ],
   },
 ];
 
