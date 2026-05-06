@@ -7,7 +7,7 @@ import MezoPassportButton from "@/components/MezoPassportButton";
 const navLinks = [
   { to: "/", label: "Home" },
   { to: "/risk-analysis", label: "Risk Analysis" },
-  { to: "/investigation", label: "Investigation" },
+  { to: "/blockchain-forensics", label: "Blockchain Forensics" },
   { to: "/aml-screening", label: "AML Screening" },
   { to: "/contract-risk", label: "Contract Risk" },
   { to: "/compliance", label: "Compliance" },

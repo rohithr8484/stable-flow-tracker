@@ -19,7 +19,8 @@ const App = () => (
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/risk-analysis" element={<RiskAnalysis />} />
-        <Route path="/investigation" element={<Investigation />} />
+        <Route path="/investigation" element={<BlockchainForensics />} />
+        <Route path="/blockchain-forensics" element={<BlockchainForensics />} />
         <Route path="/compliance" element={<Compliance />} />
         <Route path="/aml-screening" element={<AMLScreening />} />
         <Route path="/contract-risk" element={<ContractRiskAnalyser />} />
