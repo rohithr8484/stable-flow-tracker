@@ -19,9 +19,12 @@ const AddressInput = ({ onSubmit, loading }: Props) => {
   };
 
   const fields = [
-    { label: "Send Transaction Hash (BTC / MUSD)", value: send, set: setSend, placeholder: "Enter send tx hash e.g. 0xc56cbb60c2..." },
-    { label: "Receive Transaction Hash (BTC / MUSD)", value: receive, set: setReceive, placeholder: "Enter receive tx hash e.g. 0xa32f8bc91e..." },
-    { label: "Liquidity Pool Hash", value: liquidityPool, set: setLiquidityPool, placeholder: "Enter liquidity pool tx hash..." },
+    {
+      label: "Send Transaction Hash (BTC / MUSD)",
+      value: send,
+      set: setSend,
+      placeholder: "Enter send tx hash e.g. 0xc56cbb60c2...",
+    },
   ];
 
   return (
@@ -32,7 +35,9 @@ const AddressInput = ({ onSubmit, loading }: Props) => {
         </div>
         <div>
           <h3 className="font-heading font-semibold text-foreground">Enter Transaction Hashes for Risk Analysis</h3>
-          <p className="text-xs text-muted-foreground">Provide BTC and MUSD transaction hashes for send, receive, and liquidity pool operations</p>
+          <p className="text-xs text-muted-foreground">
+            Provide BTC and MUSD transaction hashes for send, receive, and liquidity pool operations
+          </p>
         </div>
       </div>
 
