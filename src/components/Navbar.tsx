@@ -1,8 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { Shield, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAccount } from "wagmi";
 import WalletConnectControl from "@/components/WalletConnectControl";
 import MezoPassportButton from "@/components/MezoPassportButton";
+import { logWalletActivity } from "@/lib/walletActivity";
 
 const navLinks = [
   { to: "/", label: "Home" },
@@ -13,9 +15,31 @@ const navLinks = [
   { to: "/compliance", label: "Compliance" },
 ];
 
+const routeAction: Record<string, string> = {
+  "/": "viewed_home",
+  "/risk-analysis": "viewed_risk_analysis",
+  "/blockchain-forensics": "viewed_blockchain_forensics",
+  "/investigation": "viewed_blockchain_forensics",
+  "/aml-screening": "viewed_aml_screening",
+  "/contract-risk": "viewed_contract_risk",
+  "/compliance": "viewed_compliance",
+};
+
 const Navbar = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { address, isConnected, chain } = useAccount();
+  const loggedRoutes = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!isConnected || !address) return;
+    const action = routeAction[location.pathname];
+    if (!action) return;
+    const key = `${address.toLowerCase()}::${action}`;
+    if (loggedRoutes.current.has(key)) return;
+    loggedRoutes.current.add(key);
+    void logWalletActivity(address, action, chain?.id);
+  }, [location.pathname, address, isConnected, chain?.id]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-t-0 border-x-0 rounded-none">
