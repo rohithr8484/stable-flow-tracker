@@ -20,10 +20,10 @@ const AddressInput = ({ onSubmit, loading }: Props) => {
 
   const fields = [
     {
-      label: "Send Transaction Hash (BTC / MUSD)",
+      label: "Transaction Hash (BTC / MUSD)",
       value: send,
       set: setSend,
-      placeholder: "Enter send tx hash e.g. 0xc56cbb60c2...",
+      placeholder: "Enter tx hash e.g. 0xc56cbb60c2...",
     },
   ];
 
