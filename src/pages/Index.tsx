@@ -12,7 +12,6 @@ import {
   ShieldAlert,
   FileCode2,
   Sparkles,
-  CheckCircle2,
   TrendingUp,
   Activity,
   Zap,
@@ -84,12 +83,8 @@ const features = [
   { icon: Globe, title: "Multi-Chain Support", desc: "BTC, ETH, Mezo, and MUSD ecosystems in one view." },
 ];
 
-const stats = [
-  { value: "$4.2B+", label: "Assets monitored" },
-  { value: "180M+", label: "Addresses screened" },
-  { value: "99.97%", label: "Uptime SLA" },
-  { value: "< 800ms", label: "Avg. scoring latency" },
-];
+
+
 
 const workflow = [
   {
