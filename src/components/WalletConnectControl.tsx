@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Wallet, LogOut, ChevronRight } from "lucide-react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 import { getConnectorLabel, shortenAddress } from "@/lib/walletUtils";
+import { logWalletActivity } from "@/lib/walletActivity";
 
 interface WalletConnectControlProps {
   size?: "default" | "sm" | "lg" | "icon";
@@ -21,11 +22,20 @@ export default function WalletConnectControl({
   const { connectors, connectAsync, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const [open, setOpen] = useState(false);
+  const loggedAddress = useRef<string | null>(null);
 
   const availableConnectors = useMemo(
     () => connectors.filter((item, index, arr) => arr.findIndex((entry) => entry.id === item.id) === index),
     [connectors],
   );
+
+  useEffect(() => {
+    if (isConnected && address && loggedAddress.current !== address.toLowerCase()) {
+      loggedAddress.current = address.toLowerCase();
+      void logWalletActivity(address, "wallet_connected", chain?.id);
+    }
+    if (!isConnected) loggedAddress.current = null;
+  }, [isConnected, address, chain?.id]);
 
   const handleConnect = async (walletConnector: (typeof connectors)[number]) => {
     try {
