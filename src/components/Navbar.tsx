@@ -22,7 +22,7 @@ const Navbar = () => {
       <div className="container mx-auto flex items-center justify-between h-16 px-4 gap-4">
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <Shield className="h-7 w-7 text-primary" />
-          <span className="font-heading font-bold text-lg text-foreground hidden sm:inline">BTC Treasury</span>
+          <span className="font-heading font-bold text-lg text-foreground hidden sm:inline">Mezo Auth Comply</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-1 min-w-0">
