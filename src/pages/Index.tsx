@@ -214,42 +214,12 @@ const Index = () => (
               <WalletConnectControl size="default" />
             </div>
 
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-muted-foreground">
-              {["SOC 2 aligned", "FATF compliant", "MiCA ready", "OFAC integrated"].map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-accent" />
-                  {tag}
-                </span>
-              ))}
-            </div>
           </motion.div>
         </div>
       </section>
 
       {/* Price Feeds */}
       <PriceFeed />
-
-      {/* Stats */}
-      <section className="py-16 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="glass-card p-8 md:p-10 grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-4">
-            {stats.map((s, i) => (
-              <motion.div
-                key={s.label}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: "-50px" }}
-                custom={i}
-                variants={fadeUp}
-                className="text-center"
-              >
-                <div className="font-heading text-3xl md:text-4xl font-bold text-gradient">{s.value}</div>
-                <div className="text-xs md:text-sm text-muted-foreground mt-2 uppercase tracking-wider">{s.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Services */}
       <section className="py-20 px-4">
@@ -445,10 +415,10 @@ const Index = () => (
         <div className="container mx-auto max-w-6xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Shield className="h-4 w-4 text-primary" />
-            BTC Treasury Management
+            Mezo Auth Comply
           </div>
           <div className="text-xs text-muted-foreground">
-            © 2026 BTC Treasury Management & Institutional Services. All rights reserved.
+            © 2026 Mezo Auth Comply. All rights reserved.
           </div>
         </div>
       </footer>
