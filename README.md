@@ -26,7 +26,7 @@ AI-powered transaction intelligence and wallet risk monitoring for MUSD/BTC tran
 - Suspicious wallet interaction detection
 - Transaction exposure monitoring
 - Behavioral transaction analysis
-- Example ->
+  - Example ->
 - Yield & Investment: Detect risky BTC yield vault activity
 - Borrowing & Leverage: Monitor liquidation-risk BTC loans
 - Payments: Detect suspicious merchant payment flows
@@ -46,7 +46,7 @@ Advanced forensic investigation and blockchain intelligence infrastructure for M
 - Wallet clustering and entity attribution
 - Cross-wallet activity tracing
 - On-chain forensic investigation workflows
-- Example - > 
+  - Example - > 
 - Yield & Investment: Trace suspicious yield fund flows
 - Borrowing & Leverage: Investigate liquidation transaction chains
 - Payments: Visualize BTC payment movements
@@ -66,7 +66,7 @@ Real-time AML monitoring and sanctions intelligence systems for MUSD/BTC transac
 - AML Screening Results
 - Automated compliance monitoring
 - Continuous transaction surveillance
-- Example
+  - Example
 - Yield & Investment: Screen BTC vault deposits against sanctions lists
 - Borrowing & Leverage: Monitor suspicious lending activity
 - Payments: AML checks for merchant BTC payments
@@ -84,7 +84,7 @@ AI-powered smart contract security and risk intelligence engine for MUSD/BTC con
 - Upgradeability risk detection
 - Suspicious logic analysis
 - Security best-practice validation
-- Example
+  - Example
 - Yield & Investment: Scan BTC vault contracts for vulnerabilities
 - Borrowing & Leverage: Detect lending protocol security risks
 - Payments: Analyze payment contract safety
