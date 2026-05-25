@@ -208,6 +208,7 @@ npm run type-check
 | 3    | `0xd19aa858a36569226dd46efe9e2df67e58dd5aa4759335a8d5f8028279d14b06` | Router / Liquidity Pool | Swap / Liquidity Routing| BTC and MUSD moved between liquidity pools via router contract |   60
 
 ---
+
 ### 📑 Smart Contract Risk Analysis
 
 | **Contract**                | **Risk Score** | **Risk Level** |                        **Assessment**                                       |                                     
