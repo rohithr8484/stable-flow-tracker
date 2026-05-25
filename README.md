@@ -3,7 +3,7 @@
 Mezo Auth Comply is an AI-powered blockchain compliance, AML, and transaction intelligence platform built for the Mezo ecosystem.  
 The platform provides real-time transaction monitoring, forensic analysis, sanctions screening, wallet risk scoring, and smart contract risk detection using advanced compliance infrastructure.
 
-<img width="1806" height="871" alt="image" src="https://github.com/user-attachments/assets/compliance-dashboard.png" />
+<img width="1923" height="818" alt="image" src="https://github.com/user-attachments/assets/827c1252-053f-4cbd-86de-3703523d4055" />
 
 <p align="left"> 
 <img src="https://img.shields.io/badge/Compliance-red?style=flat-square" /> 
