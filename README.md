@@ -122,32 +122,6 @@ AI-powered smart contract security and risk intelligence engine for MUSD/BTC con
 
 ---
 
-### 🚨 AML Screening Infrastructure
-
-Real-time AML monitoring and sanctions intelligence platform.
-
-- Global sanctions list screening
-- FATF red-flag analysis
-- Payment behavior monitoring
-- Adverse media screening
-- Suspicious activity detection
-- AML compliance reporting
-
----
-
-### 📑 Contract Risk Analyzer
-
-Analyze smart contracts for vulnerabilities and production risks.
-
-- Smart contract scanning
-- Permission analysis
-- Security validation checks
-- Upgradeability analysis
-- Risk recommendations
-- Deployment readiness assessment
-
----
-
 ## Environment Variables
 
 ```bash
