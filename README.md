@@ -1,4 +1,4 @@
-# 🛡 Mezo Auth Comply - AI-Powered Blockchain Compliance Infrastructure & Risk Intelligence Platform
+# 🛡 Mezo Auth Comply - AI-Powered Blockchain Compliance Infrastructure & Risk Intelligence Platform -> BTC Treasury Management, Institutional Services & Compliance Infrastructure
 
 Mezo Auth Comply is an AI-powered blockchain compliance, AML, and transaction intelligence platform built for the Mezo ecosystem. The platform provides real-time transaction monitoring, forensic analysis, sanctions screening, wallet risk scoring, and smart contract risk detection for MUSD and BTC transactions using advanced compliance infrastructure.
 
