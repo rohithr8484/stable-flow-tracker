@@ -259,25 +259,82 @@ npm run type-check
 ## Folder Structure
 
 ```bash
+## Folder Structure
+
+```bash
 stable-flow-tracker/
 │
-├── src/
-│   ├── components/
-│   ├── pages/
-│   ├── hooks/
-│   ├── services/
-│   ├── utils/
-│   ├── graphs/
-│   ├── compliance/
-│   ├── aml/
-│   ├── forensics/
-│   └── contracts/
-│
 ├── public/
+│
+├── src/
+│   │
+│   ├── assets/
+│   │
+│   ├── components/
+│   │   │
+│   │   ├── ui/
+│   │   │
+│   │   ├── AMLEnhancedChecks.tsx
+│   │   ├── AddressInput.tsx
+│   │   ├── ChatBot.tsx
+│   │   ├── EntityGraph.tsx
+│   │   ├── ForensicsSummary.tsx
+│   │   ├── InvestigationCaseAnalysis.tsx
+│   │   ├── MezoPassportButton.tsx
+│   │   ├── NavLink.tsx
+│   │   ├── Navbar.tsx
+│   │   ├── PaymentGate.tsx
+│   │   ├── PriceFeed.tsx
+│   │   ├── RiskGauge.tsx
+│   │   ├── TransactionAnalytics.tsx
+│   │   ├── TransactionFlowDiagram.tsx
+│   │   ├── TransactionGraph.tsx
+│   │   ├── TransferTable.tsx
+│   │   ├── WalletConnectControl.tsx
+│   │   ├── WalletConnectionsBreakdown.tsx
+│   │   └── WalletProvider.tsx
+│   │
+│   ├── contracts/
+│   │
+│   ├── hooks/
+│   │
+│   ├── integrations/
+│   │   └── supabase/
+│   │
+│   ├── lib/
+│   │
+│   ├── pages/
+│   │
+│   ├── test/
+│   │
+│   ├── App.css
+│   ├── App.tsx
+│   ├── index.css
+│   ├── main.tsx
+│   └── vite-env.d.ts
+│
+├── supabase/
+│
+├── .env
+├── .gitignore
+├── README.md
+├── bun.lock
+├── bun.lockb
+├── components.json
+├── eslint.config.js
+├── index.html
+├── package-lock.json
 ├── package.json
-├── tailwind.config.js
+├── playwright-fixture.ts
+├── playwright.config.ts
+├── postcss.config.js
+├── tailwind.config.ts
+├── tsconfig.app.json
 ├── tsconfig.json
-└── vite.config.ts
+├── tsconfig.node.json
+├── vite.config.ts
+└── vitest.config.ts
+```
 ```
 
 ---
