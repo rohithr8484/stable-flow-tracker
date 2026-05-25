@@ -385,4 +385,4 @@ This project is private. Please contact the maintainer for access.
 
 **AI-Powered Compliance Infrastructure for the Future of Blockchain Security 🚀**
 
-*Built with modern compliance infrastructure, blockchain intelligence systems, and AI-powered forensic analytics*
+*Built with modern compliance infrastructure, blockchain intelligence systems, and AI-powered forensic analytics, Thanks to mezo hackathon mentors*
