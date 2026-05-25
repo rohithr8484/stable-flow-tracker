@@ -202,7 +202,7 @@ npm run type-check
 
 ---
 
-### Transactions
+### Sample Transactions Analysed
 
 | **Sl** |           **Transaction Hash**                                     |  **Protocol Component** |    **Category**         | **Key Activity** |
 | ---- | ---------------- | ------------------- | -------- | ------------ |
