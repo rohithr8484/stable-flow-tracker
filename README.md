@@ -13,7 +13,7 @@ Mezo Auth Comply is an AI-powered blockchain compliance, AML, and transaction in
 
 ---
 
-## ✨ Features
+## ✨ Features on Pay per use 0.2 MUSD or 0.0002 BTC
 
 **🛡 Risk Analysis**
 
