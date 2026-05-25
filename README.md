@@ -80,7 +80,7 @@ AI-powered smart contract security and risk intelligence engine for MUSD/BTC con
 - **React** - Modern UI library
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first styling
-- **@mezo-org/passport"** - Wallet connnections
+- **@mezo-org/passport** - Wallet connnections
 - **Radix UI** - Accessible component primitives
 
 ### State Management
