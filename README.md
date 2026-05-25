@@ -18,7 +18,7 @@ The platform provides real-time transaction monitoring, forensic analysis, sanct
 
 **🛡 Risk Analysis**
 
-AI-powered transaction intelligence and wallet risk monitoring.
+AI-powered transaction intelligence and wallet risk monitoring for MUSD/BTC transactions.
 
 - Risk Analysis Transaction Graph
 - Sender → Transaction → Receiver flow analysis
@@ -33,7 +33,7 @@ AI-powered transaction intelligence and wallet risk monitoring.
 
 **🔍 Blockchain Forensics**
 
-Advanced forensic investigation and blockchain intelligence infrastructure.
+Advanced forensic investigation and blockchain intelligence infrastructure for MUSD/BTC transactions.
 
 - Forensic Transaction Graph
 - AI Summary — Transaction Graph
@@ -48,7 +48,7 @@ Advanced forensic investigation and blockchain intelligence infrastructure.
 
 **🚨 AML Screening**
 
-Real-time AML monitoring and sanctions intelligence systems.
+Real-time AML monitoring and sanctions intelligence systems for MUSD/BTC transactions.
 
 - AML Transaction Flow Graph
 - Sanctions Checks
@@ -64,7 +64,7 @@ Real-time AML monitoring and sanctions intelligence systems.
 
 **📑 Contract Risk Analyser**
 
-AI-powered smart contract security and risk intelligence engine.
+AI-powered smart contract security and risk intelligence engine for MUSD/BTC contracts.
 
 - Moderate risks identified
 - Recommended to address before production use
@@ -75,19 +75,6 @@ AI-powered smart contract security and risk intelligence engine.
 - Security best-practice validation
 - Production deployment readiness insights
 
----
-
-**📊 AI Compliance Intelligence**
-
-AI-powered compliance and transaction investigation infrastructure.
-
-- AI-generated compliance summaries
-- AI-powered entity mapping
-- Automated transaction insights
-- Wallet relationship intelligence
-- Behavioral anomaly detection
-- Compliance risk recommendations
-- AI-assisted forensic investigations
 
 ---
 
@@ -191,41 +178,14 @@ Analyze smart contracts for vulnerabilities and production risks.
 
 ## Environment Variables
 
-### 🌐 Blockchain Infrastructure
-
 ```bash
-MEZO_CHAIN_ID=
+VITE_SUPABASE_PROJECT_ID=
 
-MEZO_RPC_HTTP=
+VITE_SUPABASE_PUBLISHABLE_KEY=
 
-MEZO_RPC_WS=
-
-MEZO_BLOCK_EXPLORER=
+VITE_SUPABASE_URL=
 ```
 
-### 🤖 AI Compliance Engine
-
-```bash
-AI_RISK_ENGINE_KEY=
-
-AI_ANALYTICS_ENDPOINT=
-
-ENTITY_RESOLUTION_API=
-
-FORENSICS_ENGINE_KEY=
-```
-
-### 🚨 AML Infrastructure
-
-```bash
-AML_SCREENING_API_KEY=
-
-SANCTIONS_API_KEY=
-
-ADVERSE_MEDIA_API_KEY=
-
-PAYMENT_MONITORING_API=
-```
 
 ### 🔗 Wallet Infrastructure
 
@@ -293,18 +253,6 @@ npm run type-check
 | **Entity Investigation**        | Wallet clustering and entity mapping                                       | AI Entity Resolution       |
 | **Contract Risk Analysis**      | Smart contract vulnerability and permission analysis                       | Solidity + AI              |
 | **AI Compliance Summaries**     | Generate automated compliance and forensic investigation reports           | AI Analytics               |
-
----
-
-### 🚀 Infrastructure Components
-
-| **Infrastructure**              | **Purpose**                                            |
-| --------------------------------| ------------------------------------------------------ |
-| Mezo RPC Infrastructure         | Blockchain connectivity and monitoring                 |
-| AI Compliance Engine            | Wallet risk analysis and AML intelligence              |
-| Graph Investigation Engine      | Transaction and wallet relationship mapping            |
-| AML Screening Infrastructure    | Global sanctions and payment monitoring                |
-| Smart Contract Analyzer         | Security validation and risk detection                 |
 
 ---
 
