@@ -311,6 +311,34 @@ stable-flow-tracker/
 
 ---
 
+
+## Mezo Network Configuration
+
+Connect your wallet to Mezo Testnet (RPC: https://rpc.test.mezo.org, chain ID 31611).
+
+Get BTC + MEZO from faucet ( https://faucet.test.mezo.org/ )
+
+Open Mezo website (testnet)
+
+Deposit testnet BTC as collateral
+
+Borrow → Mint MUSD
+
+MUSD appears in your wallet
+
+- **Network:** Mezo Testnet    **Chain ID:** `31611`
+
+
+**Native Currency:** MUSD 
+
+
+
+**Explorer:**
+
+https://explorer.mezo.org
+
+---
+
 ### 🤝 Contributing
 
 Contributions are welcome! Feel free to submit pull requests or open issues to improve the project.
