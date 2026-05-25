@@ -262,7 +262,11 @@ npm run type-check
 
 ---
 
-## Folder Structure
+## MUSD Integration
+
+- **MUSD transaction analysis** AI-powered analysis, monitoring, and risk detection for MUSD payment flows, wallet activity, and transaction behavior.`
+- **PriceFeed oracle** for live BTC/USD price and MUSD debt estimation
+- **Mezo Passport** for beneficiary identity verification (API-based, frontend-enforced)
 
 ## Folder Structure
 
