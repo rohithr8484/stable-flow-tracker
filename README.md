@@ -205,9 +205,9 @@ npm run type-check
 
 | Sl | Transaction Hash | Protocol Component | Category | Key Activity | Risk |
 |----|------------------|--------------------|----------|--------------|------|
-| 1 | `0x5ad9ee250a6b7b2acfb733da84c4337fa403de90616889fdc0d44a95d1c3466c` | PCV / MUSDSavingsRate | Treasury Accounting | MUSD distribution and equivalent token burn | 35 |
-| 2 | `0x90a3c725a93fed176eb12cce67bfbcdc9c5ba88a2a208978c26ad3ed8b842112` | PrizePool / VaultGauge | Incentives Distribution | MEZO reward distribution to user | 45 |
-| 3 | `0xd19aa858a36569226dd46efe9e2df67e58dd5aa4759335a8d5f8028279d14b06` | Router / Liquidity Pool | Swap / Liquidity Routing | BTC and MUSD moved between liquidity pools via router contract | 60 |
+| 1 | `0x5ad9ee250a6b7b2acfb733da84c4337fa403de90616889fdc0d44a95d1c3466c` | PCV / MUSDSavingsRate | Treasury Accounting | MUSD distribution and equivalent token burn | 35/100 |
+| 2 | `0x90a3c725a93fed176eb12cce67bfbcdc9c5ba88a2a208978c26ad3ed8b842112` | PrizePool / VaultGauge | Incentives Distribution | MEZO reward distribution to user | 45/100 |
+| 3 | `0xd19aa858a36569226dd46efe9e2df67e58dd5aa4759335a8d5f8028279d14b06` | Router / Liquidity Pool | Swap / Liquidity Routing | BTC and MUSD moved between liquidity pools via router contract | 60/100 |
 
 ---
 
@@ -229,7 +229,6 @@ npm run type-check
 | `BTCSavingsVault.sol` | 45/100 | High Risk | High-risk issues found. Requires thorough audit before mainnet deployment. |
 | `BTCSendRouter.sol` | 45/100 | High Risk | High-risk issues found. Requires thorough audit before mainnet deployment. |
 | `BTCStaking.sol` | 45/100 | High Risk | High-risk issues found. Requires thorough audit before mainnet deployment. |
-| `BTCTimelock.sol` | 25/100 | Moderate Risk | Moderate risks identified. Recommended to address before production use. |
 | `BTCVesting.sol` | 25/100 | Moderate Risk | Moderate risks identified. Recommended to address before production use. |
 | `BTCYieldFarm.sol` | 100/100 | Critical Risk | Critical vulnerabilities detected — do NOT deploy without remediation. |
 | `ComplianceOracle.sol` | 35/100 | Moderate Risk | Moderate risks identified. Recommended to address before production use. |
