@@ -231,10 +231,9 @@ npm run type-check
 
 ## Folder Structure
 
-```bash
 ## Folder Structure
 
-```bash
+```
 stable-flow-tracker/
 │
 ├── public/
