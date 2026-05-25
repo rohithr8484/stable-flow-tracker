@@ -118,35 +118,7 @@ AI-powered smart contract security and risk intelligence engine for MUSD/BTC con
 
 ## Technical Architecture
 
-<img width="1024" height="1536" alt="image" src="https://github.com/user-attachments/assets/compliance-architecture.png" />
-
----
-
-## Compliance Infrastructure
-
-### 🛡 Risk Analysis Engine
-
-Analyze wallet behavior, transaction exposure, and suspicious interactions.
-
-- Wallet risk score generation
-- Sender → Receiver transaction tracing
-- Wallet exposure intelligence
-- High-risk transaction monitoring
-- Wallet relationship mapping
-- Transaction graph visualization
-
----
-
-### 🔍 Blockchain Forensics Engine
-
-Advanced blockchain investigation and forensic intelligence tools.
-
-- Forensic transaction graph analysis
-- Entity investigation workflows
-- Wallet clustering infrastructure
-- AI-generated investigation summaries
-- Transaction tracing systems
-- Cross-wallet relationship analytics
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/0f72ecf2-5e26-4dcf-9eb4-b7cc886fef14" />
 
 ---
 
