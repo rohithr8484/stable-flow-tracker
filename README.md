@@ -21,7 +21,6 @@ AI-powered transaction intelligence and wallet risk monitoring for MUSD/BTC tran
 
 - Risk Analysis Transaction Graph
 - Sender → Transaction → Receiver flow analysis
-- Each row below the main flow represents token transfers between two addresses
 - Wallet Connections Breakdown
 - Wallet risk score analysis
 - Suspicious wallet interaction detection
@@ -72,8 +71,6 @@ AI-powered smart contract security and risk intelligence engine for MUSD/BTC con
 - Upgradeability risk detection
 - Suspicious logic analysis
 - Security best-practice validation
-- Production deployment readiness insights
-
 
 ---
 
