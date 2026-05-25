@@ -200,6 +200,34 @@ npm run type-check
 | **AI Compliance Summaries**     | Generate automated compliance and forensic investigation reports           | AI Analytics               |
 
 ---
+### 📑 Smart Contract Risk Analysis
+
+| **Contract**                | **Risk Score** | **Risk Level** | **Assessment** |
+| --------------------------- | -------------- | --------------- | -------------- |
+| **BTCBackedLoan.sol**       | `45/100`       | High Risk       | High-risk issues found. Requires thorough audit before mainnet deployment. |
+| **BTCBridge.sol**           | `25/100`       | Moderate Risk   | Moderate risks identified. Recommended to address before production use. |
+| **BTCEscrow.sol**           | `25/100`       | Moderate Risk   | Moderate risks identified. Recommended to address before production use. |
+| **BTCFeeCollector.sol**     | `25/100`       | Moderate Risk   | Moderate risks identified. Recommended to address before production use. |
+| **BTCGovernance.sol**       | `45/100`       | High Risk       | High-risk issues found. Requires thorough audit before mainnet deployment. |
+| **BTCInsurancePool.sol**    | `25/100`       | Moderate Risk   | Moderate risks identified. Recommended to address before production use. |
+| **BTCLiqidation.sol**       | `45/100`       | High Risk       | High-risk issues found. Requires thorough audit before mainnet deployment. |
+| **BTCMUSDPool.sol**         | `45/100`       | High Risk       | High-risk issues found. Requires thorough audit before mainnet deployment. |
+| **BTCPriceFeed.sol**        | `25/100`       | Moderate Risk   | Moderate risks identified. Recommended to address before production use. |
+| **BTCReceiverHandler.sol**  | `45/100`       | High Risk       | High-risk issues found. Requires thorough audit before mainnet deployment. |
+| **BTCRewardsDistributor.sol** | `25/100`     | Moderate Risk   | Moderate risks identified. Recommended to address before production use. |
+| **BTCSavingsVault.sol**     | `45/100`       | High Risk       | High-risk issues found. Requires thorough audit before mainnet deployment. |
+| **BTCSendRouter.sol**       | `45/100`       | High Risk       | High-risk issues found. Requires thorough audit before mainnet deployment. |
+| **BTCStaking.sol**          | `45/100`       | High Risk       | High-risk issues found. Requires thorough audit before mainnet deployment. |
+| **BTCTimelock.sol**         | `25/100`       | Moderate Risk   | Moderate risks identified. Recommended to address before production use. |
+| **BTCVesting.sol**          | `25/100`       | Moderate Risk   | Moderate risks identified. Recommended to address before production use. |
+| **BTCYieldFarm.sol**        | `100/100`      | Critical Risk   | Critical vulnerabilities detected — do NOT deploy without remediation. |
+| **ComplianceOracle.sol**    | `35/100`       | Moderate Risk   | Moderate risks identified. Recommended to address before production use. |
+| **MUSDFlashLoan.sol**       | `75/100`       | Critical Risk   | Critical vulnerabilities detected — do NOT deploy without remediation. |
+| **MUSDMinter.sol**          | `45/100`       | High Risk       | High-risk issues found. Requires thorough audit before mainnet deployment. |
+| **SafeMath.sol**            | `15/100`       | Low Risk        | Moderate risks identified. Recommended to address before production use. |
+| **TreasuryMultisig.sol**    | `45/100`       | High Risk       | High-risk issues found. Requires thorough audit before mainnet deployment. |
+
+---
 
 ## Folder Structure
 
